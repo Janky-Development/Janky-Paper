@@ -1,0 +1,121 @@
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -935,7 +_,7 @@
+ 
+         for (ServerLevel level : this.getAllLevels()) {
+             if (!silent) {
+-                LOGGER.info("Saving chunks for level '{}'/{}", level, level.dimension().identifier());
++                LOGGER.debug("Saving chunks for level '{}'/{}", level, level.dimension().identifier()); // Janky Paper - console noise (ChunkHolderManager reports the save)
+             }
+ 
+             level.save(null, flush, SharedConstants.DEBUG_DONT_SAVE_WORLD || level.noSave && !force, close); // Paper - add close param
+@@ -1003,7 +_,7 @@
+             this.cancelRecordingMetrics();
+         }
+ 
+-        LOGGER.info("Stopping server");
++        dev.jankypaper.server.log.ServerBanners.printShutdownHeader(this); // Janky Paper - styled shutdown banner
+         Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
+         // CraftBukkit start
+         if (this.server != null) {
+@@ -1015,13 +_,13 @@
+         this.getConnection().stop();
+         this.isSaving = true;
+         if (this.playerList != null) {
+-            LOGGER.info("Saving players");
++            dev.jankypaper.server.log.JankyLog.info("Saving players"); // Janky Paper - styled logs
+             this.playerList.saveAll();
+             this.playerList.removeAll(this.isRestarting); // Paper
+             this.getConnection().handleAllDisconnections(); // Paper
+         }
+ 
+-        LOGGER.info("Saving worlds");
++        dev.jankypaper.server.log.JankyLog.info("Saving worlds"); // Janky Paper - styled logs
+ 
+         for (ServerLevel level : this.getAllLevels()) {
+             if (level != null) {
+@@ -1064,19 +_,20 @@
+             io.papermc.paper.util.MCUtil.ASYNC_EXECUTOR.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS); // Paper
+         } catch (InterruptedException _) {} // Paper
+         if (org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) {
+-            LOGGER.info("Saving usercache.json");
++            dev.jankypaper.server.log.JankyLog.info("Saving usercache.json"); // Janky Paper - styled logs
+             this.services().nameToIdCache().save(false); // Paper - Perf: Async GameProfileCache saving
+         }
+         // Spigot end
+         // Paper start - rewrite chunk system
+-        LOGGER.info("Waiting for all RegionFile I/O tasks to complete...");
++        dev.jankypaper.server.log.JankyLog.info("Flushing region files..."); // Janky Paper - styled logs
+         ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush((MinecraftServer)(Object)this);
+-        LOGGER.info("All RegionFile I/O tasks to complete");
++        dev.jankypaper.server.log.JankyLog.success("Region files flushed"); // Janky Paper - styled logs
+         if ((Object)this instanceof net.minecraft.server.dedicated.DedicatedServer) {
+             ca.spottedleaf.moonrise.common.util.MoonriseCommon.haltExecutors();
+         }
+         // Paper end - rewrite chunk system
+         // Paper start - Improved watchdog support - move final shutdown items here
++        dev.jankypaper.server.log.ServerBanners.printShutdownFooter(); // Janky Paper - styled shutdown banner
+         Util.shutdownExecutors();
+         this.onServerExit();
+         // Paper end - Improved watchdog support - move final shutdown items here
+@@ -1258,7 +_,7 @@
+             this.server.spark.enableBeforePlugins(); // Paper - spark
+             // Spigot start
+             // Paper start
+-            LOGGER.info("Running delayed init tasks");
++            dev.jankypaper.server.log.JankyLog.info("Running delayed init tasks"); // Janky Paper - styled logs
+             new io.papermc.paper.threadedregions.RegionizedServerInitEvent().callEvent(); // Call Folia init event
+             this.server.getScheduler().mainThreadHeartbeat(); // run all 1 tick delay tasks during init,
+             // this is going to be the first thing the tick process does anyway, so move done and run it after
+@@ -1266,18 +_,19 @@
+             // anything at 3+ won't be caught here but also will trip watchdog....
+             // tasks are default scheduled at -1 + delay, and first tick will tick at 1
+             final long actualDoneTimeMs = System.currentTimeMillis() - org.bukkit.craftbukkit.Main.BOOT_TIME.toEpochMilli(); // Paper - Improve startup message
+-            LOGGER.info("Done ({})! For help, type \"help\"", String.format(java.util.Locale.ROOT, "%.3fs", actualDoneTimeMs / 1000.00D)); // Paper - Improve startup message
++            dev.jankypaper.server.log.ServerBanners.printStartup(this, actualDoneTimeMs); // Paper - Improve startup message // Janky Paper - styled startup banner
+             this.hasStarted = true;
+             org.spigotmc.WatchdogThread.tick();
+             // Paper end
+             org.spigotmc.WatchdogThread.hasStarted = true; // Paper
+             // Paper start - Add onboarding message for initial server start
+             if (io.papermc.paper.configuration.GlobalConfiguration.isFirstStart) {
+-                LOGGER.info("*************************************************************************************");
+-                LOGGER.info("This is the first time you're starting this server.");
+-                LOGGER.info("It's recommended you read our 'Getting Started' documentation for guidance.");
+-                LOGGER.info("View this and more helpful information here: https://docs.papermc.io/paper/next-steps");
+-                LOGGER.info("*************************************************************************************");
++                // Janky Paper start - styled logs
++                dev.jankypaper.server.log.JankyLog.rule();
++                dev.jankypaper.server.log.JankyLog.highlight("  First start of this server");
++                dev.jankypaper.server.log.JankyLog.info("  Read the 'Getting Started' guide: https://docs.papermc.io/paper/next-steps");
++                dev.jankypaper.server.log.JankyLog.rule();
++                // Janky Paper end
+             }
+             // Paper end - Add onboarding message for initial server start
+             // Paper start - Improve outdated version checking
+@@ -1602,6 +_,7 @@
+         this.tickCount++;
+         this.tickRateManager.tick();
+         this.tickChildren(haveTime);
++        dev.jankypaper.server.focus.FocusManager.tick(this); // Janky Paper - focus mode
+         if (nano - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
+             this.lastServerStatus = nano;
+             this.status = this.buildServerStatus();
+@@ -2004,7 +_,7 @@
+     }
+ 
+     protected void initializeKeyPair() {
+-        LOGGER.info("Generating keypair");
++        dev.jankypaper.server.log.JankyLog.info("Generating keypair"); // Janky Paper - styled logs
+ 
+         try {
+             this.keyPair = Crypt.generateKeyPair();
+@@ -2368,7 +_,7 @@
+                 boolean isSelected = selected.contains(packId);
+                 if (!isSelected && pack.getPackSource().shouldAddAutomatically()) {
+                     if (packFeatures.isSubsetOf(allowedFeatures)) {
+-                        LOGGER.info("Found new data pack {}, loading it automatically", packId);
++                        dev.jankypaper.server.log.JankyLog.info("Found new data pack '" + packId + "' - loading it automatically"); // Janky Paper - styled logs
+                         selected.add(packId);
+                     } else {
+                         LOGGER.info(

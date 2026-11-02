@@ -1,0 +1,34 @@
+--- a/ca/spottedleaf/moonrise/common/misc/NearbyPlayers.java
++++ b/ca/spottedleaf/moonrise/common/misc/NearbyPlayers.java
+@@ -81,6 +_,7 @@
+         final ChunkPos chunk = player.chunkPosition();
+ 
+         for (int i = 0; i < TOTAL_MAP_TYPES; ++i) {
++            if (player.jankyBot && dev.jankypaper.server.bot.BotPlayers.skipsNearbyMap(MAP_TYPES[i])) continue; // Janky Paper - lightweight bots
+             // use 0 for default, will be updated by tickPlayer
+             (newTrackers[i] = new TrackedPlayer(player, MAP_TYPES[i])).add(chunk.x(), chunk.z(), 0);
+         }
+@@ -96,6 +_,7 @@
+         }
+ 
+         for (final TrackedPlayer tracker : players) {
++            if (tracker == null) continue; // Janky Paper - lightweight bots
+             tracker.remove();
+         }
+     }
+@@ -118,11 +_,11 @@
+ 
+         final ChunkPos chunk = player.chunkPosition();
+ 
+-        players[NearbyMapType.GENERAL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_AREA_VIEW_DISTANCE);
+-        players[NearbyMapType.GENERAL_SMALL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_SMALL_VIEW_DISTANCE);
+-        players[NearbyMapType.GENERAL_REALLY_SMALL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_REALLY_SMALL_VIEW_DISTANCE);
++        if (players[NearbyMapType.GENERAL.ordinal()] != null) players[NearbyMapType.GENERAL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_AREA_VIEW_DISTANCE); // Janky Paper - lightweight bots
++        if (players[NearbyMapType.GENERAL_SMALL.ordinal()] != null) players[NearbyMapType.GENERAL_SMALL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_SMALL_VIEW_DISTANCE); // Janky Paper - lightweight bots
++        if (players[NearbyMapType.GENERAL_REALLY_SMALL.ordinal()] != null) players[NearbyMapType.GENERAL_REALLY_SMALL.ordinal()].update(chunk.x(), chunk.z(), GENERAL_REALLY_SMALL_VIEW_DISTANCE); // Janky Paper - lightweight bots
+         players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()].update(chunk.x(), chunk.z(), PlatformHooks.get().getTickViewDistance(player));
+-        players[NearbyMapType.VIEW_DISTANCE.ordinal()].update(chunk.x(), chunk.z(), PlatformHooks.get().getViewDistance(player));
++        if (players[NearbyMapType.VIEW_DISTANCE.ordinal()] != null) players[NearbyMapType.VIEW_DISTANCE.ordinal()].update(chunk.x(), chunk.z(), PlatformHooks.get().getViewDistance(player)); // Janky Paper - lightweight bots
+         players[NearbyMapType.SPAWN_RANGE.ordinal()].update(chunk.x(), chunk.z(), ChunkTickConstants.PLAYER_SPAWN_TRACK_RANGE); // Moonrise - chunk tick iteration
+     }
+ 

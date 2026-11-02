@@ -1,0 +1,10 @@
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -481,6 +_,7 @@
+     }
+ 
+     public void sendCommands(final ServerPlayer player) {
++        if (player.jankyBot) return; // Janky Paper - lightweight bots - building the command tree packet per bot is costly and nothing reads it
+         // Paper start - Send empty commands if tab completion is disabled
+         if (org.spigotmc.SpigotConfig.tabComplete < 0) {
+             player.connection.send(new ClientboundCommandsPacket(new RootCommandNode<>(), COMMAND_NODE_INSPECTOR));

@@ -1,0 +1,18 @@
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1298,6 +_,7 @@
+ 
+     @Override
+     public BlockState getBlockState(final BlockPos pos) {
++        if (dev.jankypaper.server.bot.BotWorkerThreads.isWorker()) return dev.jankypaper.server.bot.BotWorkerThreads.blockState(this, pos); // Janky Paper - off-thread bot path searches read loaded chunks only
+         // CraftBukkit start - tree generation
+         if (this.captureTreeGeneration) {
+             CraftBlockState previous = this.capturedBlockStates.get(pos); // Paper
+@@ -1316,6 +_,7 @@
+ 
+     @Override
+     public FluidState getFluidState(final BlockPos pos) {
++        if (dev.jankypaper.server.bot.BotWorkerThreads.isWorker()) return dev.jankypaper.server.bot.BotWorkerThreads.fluidState(this, pos); // Janky Paper - off-thread bot path searches read loaded chunks only
+         if (!this.isInValidBounds(pos)) {
+             return Fluids.EMPTY.defaultFluidState();
+         }

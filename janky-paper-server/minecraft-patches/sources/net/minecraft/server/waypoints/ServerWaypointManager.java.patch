@@ -1,0 +1,29 @@
+--- a/net/minecraft/server/waypoints/ServerWaypointManager.java
++++ b/net/minecraft/server/waypoints/ServerWaypointManager.java
+@@ -62,7 +_,7 @@
+     }
+ 
+     public void addPlayer(final ServerPlayer player) {
+-        this.players.add(player);
++        if (!player.jankyBot) this.players.add(player); // Janky Paper - lightweight bots - bots have no locator bar; they are still tracked as waypoints
+ 
+         if (this.locatorBarEnabled) { // Paper - optimize ServerWaypointManager with locator bar disabled
+         for (WaypointTransmitter waypoint : this.waypoints) {
+@@ -76,7 +_,7 @@
+     }
+ 
+     public void updatePlayer(final ServerPlayer player) {
+-        if (!this.locatorBarEnabled) return; // Paper - optimize ServerWaypointManager with locator bar disabled
++        if (!this.locatorBarEnabled || player.jankyBot) return; // Paper - optimize ServerWaypointManager with locator bar disabled // Janky Paper - lightweight bots
+         Map<WaypointTransmitter, WaypointTransmitter.Connection> waypointConnections = this.connections.row(player);
+         SetView<WaypointTransmitter> potentialWaypoints = Sets.difference(this.waypoints, waypointConnections.keySet());
+ 
+@@ -117,7 +_,7 @@
+     // Paper start - optimize ServerWaypointManager with locator bar disabled
+     // Avoid a gamerule lookup for each player
+     private boolean isLocatorBarEnabledFor(final ServerPlayer player) {
+-        return locatorBarEnabled;
++        return locatorBarEnabled && !player.jankyBot; // Janky Paper - lightweight bots
+     // Paper end - optimize ServerWaypointManager with locator bar disabled
+     }
+ 

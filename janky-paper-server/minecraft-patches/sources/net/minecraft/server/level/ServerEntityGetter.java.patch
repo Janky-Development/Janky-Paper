@@ -1,0 +1,15 @@
+--- a/net/minecraft/server/level/ServerEntityGetter.java
++++ b/net/minecraft/server/level/ServerEntityGetter.java
+@@ -89,6 +_,12 @@
+         final double y,
+         final double z
+     ) {
++        // Janky Paper start - lightweight bots - nearest player via the per-tick player grid
++        if (entities == this.getLevel().players() && dev.jankypaper.server.bot.PlayerGrid.useFor(this.getLevel())) {
++            final double maxRange = targetConditions.jankyMaxRange(source, x, y, z, this.getLevel().jankyPlayerGrid.visibilityBoost());
++            return (T)this.getLevel().jankyPlayerGrid.nearest(x, y, z, maxRange, player -> targetConditions.test(this.getLevel(), source, player));
++        }
++        // Janky Paper end - lightweight bots
+         double best = -1.0;
+         T result = null;
+ 

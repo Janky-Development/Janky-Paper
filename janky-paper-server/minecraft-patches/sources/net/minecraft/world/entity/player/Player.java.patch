@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -501,7 +_,7 @@
+                 pickupArea = this.getBoundingBox().inflate(1.0, 0.5, 1.0);
+             }
+ 
+-            List<Entity> entities = this.level().getEntities(this, pickupArea);
++            List<Entity> entities = this instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot ? dev.jankypaper.server.bot.BotPlayers.touchableEntities(this, pickupArea) : this.level().getEntities(this, pickupArea); // Janky Paper - lightweight bots - only look up entities that react to a touch
+             List<Entity> orbs = Lists.newArrayList();
+ 
+             for (Entity entity : entities) {

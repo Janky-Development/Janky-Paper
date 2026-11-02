@@ -1,0 +1,60 @@
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -74,6 +_,18 @@
+         this.load(manager);
+     }
+ 
++    // Janky Paper start - lightweight bots
++    /** Drops all advancement progress (~1,800 progress objects per player) - bots never earn or display advancements. */
++    public void jankyReleaseForBot() {
++        this.clearTriggers();
++        this.progress.clear();
++        this.visible.clear();
++        this.rootsToUpdate.clear();
++        this.progressChanged.clear();
++        this.isFirstPacket = false;
++    }
++    // Janky Paper end - lightweight bots
++
+     public void setPlayer(final ServerPlayer player) {
+         this.player = player;
+     }
+@@ -83,6 +_,7 @@
+     }
+ 
+     public void reload(final ServerAdvancementManager manager) {
++        if (this.player.jankyBot) { this.jankyReleaseForBot(); return; } // Janky Paper - lightweight bots
+         this.clearTriggers();
+         this.progress.clear();
+         this.visible.clear();
+@@ -129,6 +_,7 @@
+ 
+     public void save() {
+         if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
++        if (this.player.jankyBot) return; // Janky Paper - lightweight bots - progress was released, never overwrite the file with it
+         JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
+ 
+         try {
+@@ -232,6 +_,7 @@
+     }
+ 
+     private void registerListeners(final AdvancementHolder holder) {
++        if (this.player.jankyBot) return; // Janky Paper - lightweight bots
+         AdvancementProgress advancementProgress = this.getOrStartProgress(holder);
+         if (!advancementProgress.isDone()) {
+             for (Entry<String, Criterion<?>> entry : holder.value().criteria().entrySet()) {
+@@ -255,6 +_,14 @@
+     }
+ 
+     public void flushDirty(final ServerPlayer player, final boolean showAdvancements) {
++        // Janky Paper start - lightweight bots
++        if (player.jankyBot) {
++            this.isFirstPacket = false;
++            this.rootsToUpdate.clear();
++            this.progressChanged.clear();
++            return;
++        }
++        // Janky Paper end - lightweight bots
+         if (this.isFirstPacket || !this.rootsToUpdate.isEmpty() || !this.progressChanged.isEmpty()) {
+             Map<Identifier, AdvancementProgress> progress = new HashMap<>();
+             Set<AdvancementNode> added = new java.util.TreeSet<>(java.util.Comparator.comparing(node -> node.holder().id().toString())); // Paper - Changed from HashSet to TreeSet ordered alphabetically.

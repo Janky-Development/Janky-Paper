@@ -1,0 +1,44 @@
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -444,6 +_,7 @@
+     public boolean suppressTrackerForLogin = false; // Paper - Fire PlayerJoinEvent when Player is actually ready
+     // CraftBukkit end
+     public boolean isRealPlayer; // Paper
++    public boolean jankyBot; // Janky Paper - lightweight bots
+     public com.destroystokyo.paper.event.entity.@Nullable PlayerNaturallySpawnCreaturesEvent playerNaturallySpawnedEvent; // Paper - PlayerNaturallySpawnCreaturesEvent
+     public org.bukkit.event.player.PlayerQuitEvent.@Nullable QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
+ 
+@@ -737,7 +_,7 @@
+         }
+ 
+         // Paper start - Configurable container update tick rate
+-        if (--this.containerUpdateDelay <= 0) {
++        if (!this.jankyBot && --this.containerUpdateDelay <= 0) { // Janky Paper - lightweight bots - no client to sync slots to
+             this.containerMenu.broadcastChanges();
+             // Broadcast equipment and crafting slots when the player is in a container, fixes MC-297508
+             if (this.containerMenu != this.inventoryMenu) {
+@@ -1844,6 +_,7 @@
+ 
+     @Override
+     protected void pushEntities() {
++        if (this.jankyBot && !dev.jankypaper.server.bot.BotPlayers.vanillaPush()) return; // Janky Paper - lightweight bots - bot-on-bot pushing is O(bots^2); bots are still pushed by mobs
+         if (this.level().tickRateManager().runsNormally()) {
+             super.pushEntities();
+         }
+@@ -2119,7 +_,7 @@
+ 
+     @Override
+     public void awardStat(final Stat<?> stat, final int count) {
+-        this.stats.increment(this, stat, count);
++        if (!this.jankyBot) this.stats.increment(this, stat, count); // Janky Paper - lightweight bots - skips the per-increment stat event; scoreboards below still count
+         this.level().getCraftServer().getScoreboardManager().forAllObjectives(stat, this, score -> score.add(count)); // CraftBukkit - Get our scores instead
+     }
+ 
+@@ -3016,6 +_,7 @@
+     }
+ 
+     public Set<DebugSubscription<?>> debugSubscriptions() {
++        if (this.jankyBot) return Set.of(); // Janky Paper - lightweight bots - skips a permission check per bot per tick
+         return !this.server.debugSubscribers().hasRequiredPermissions(this) ? Set.of() : this.requestedDebugSubscriptions;
+     }
+ 

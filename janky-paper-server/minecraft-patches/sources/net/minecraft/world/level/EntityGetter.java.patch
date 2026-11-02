@@ -1,0 +1,26 @@
+--- a/net/minecraft/world/level/EntityGetter.java
++++ b/net/minecraft/world/level/EntityGetter.java
+@@ -119,6 +_,7 @@
+     // Paper end - Affects Spawning API
+ 
+     default @Nullable Player getNearestPlayer(final double x, final double y, final double z, final double range, final @Nullable Predicate<Entity> predicate) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, range, predicate == null ? player -> true : predicate); // Janky Paper - lightweight bots
+         double best = -1.0;
+         Player result = null;
+ 
+@@ -169,6 +_,7 @@
+     }
+ 
+     default boolean hasNearbyAlivePlayerThatAffectsSpawning(double x, double y, double z, double range) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, range, EntitySelector.PLAYER_AFFECTS_SPAWNING) != null; // Janky Paper - lightweight bots
+         for (Player player : this.players()) {
+             if (EntitySelector.PLAYER_AFFECTS_SPAWNING.test(player)) { // combines NO_SPECTATORS and LIVING_ENTITY_STILL_ALIVE with an "affects spawning" check
+                 double playerDist = player.distanceToSqr(x, y, z);
+@@ -182,6 +_,7 @@
+     // Paper end - Affects Spawning API
+ 
+     default boolean hasNearbyAlivePlayer(final double x, final double y, final double z, final double range) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, range, player -> EntitySelector.NO_SPECTATORS.test(player) && EntitySelector.LIVING_ENTITY_STILL_ALIVE.test(player)) != null; // Janky Paper - lightweight bots
+         for (Player player : this.players()) {
+             if (EntitySelector.NO_SPECTATORS.test(player) && EntitySelector.LIVING_ENTITY_STILL_ALIVE.test(player)) {
+                 double playerDist = player.distanceToSqr(x, y, z);

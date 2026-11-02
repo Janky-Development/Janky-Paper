@@ -1,0 +1,18 @@
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -199,6 +_,7 @@
+     public final io.papermc.paper.world.saveddata.PaperLevelOverrides serverLevelData; // Paper - type
+     private final EntityTickList entityTickList = new EntityTickList();
+     private final ServerWaypointManager waypointManager;
++    public final dev.jankypaper.server.bot.PlayerGrid jankyPlayerGrid = new dev.jankypaper.server.bot.PlayerGrid(this); // Janky Paper - lightweight bots - nearest-player searches
+     private EnvironmentAttributeSystem environmentAttributes;
+     // Paper - rewrite chunk system
+     private final GameEventDispatcher gameEventDispatcher;
+@@ -2429,6 +_,7 @@
+ 
+         for (int i = 0; i < receivers.size(); i++) { // Paper - particle API
+             ServerPlayer player = receivers.get(i); // Paper - particle API
++            if (player.jankyBot) continue; // Janky Paper - lightweight bots
+             if (sender != null && !player.getBukkitEntity().canSee(sender.getBukkitEntity())) continue; // CraftBukkit
+             if (this.sendParticles(player, overrideLimiter, x, y, z, packet)) {
+                 result++;

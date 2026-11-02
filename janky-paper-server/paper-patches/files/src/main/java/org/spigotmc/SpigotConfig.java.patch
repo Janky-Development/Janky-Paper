@@ -1,0 +1,20 @@
+--- a/src/main/java/org/spigotmc/SpigotConfig.java
++++ b/src/main/java/org/spigotmc/SpigotConfig.java
+@@ -198,7 +_,7 @@
+     private static void nettyThreads() {
+         int count = SpigotConfig.getInt("settings.netty-threads", 4);
+         System.setProperty("io.netty.eventLoopThreads", Integer.toString(count));
+-        Bukkit.getLogger().log(Level.INFO, "Using {0} threads for Netty based IO", count);
++        dev.jankypaper.server.log.JankyLog.kv("Netty threads", count); // Janky Paper - styled logs
+     }
+ 
+     public static boolean disableStatSaving;
+@@ -235,7 +_,7 @@
+     public static int playerSample;
+     private static void playerSample() {
+         SpigotConfig.playerSample = Math.max(SpigotConfig.getInt("settings.sample-count", 12), 0); // Paper - Avoid negative counts
+-        Bukkit.getLogger().log(Level.INFO, "Server Ping Player Sample Count: {0}", playerSample); // Paper - Use logger
++        dev.jankypaper.server.log.JankyLog.kv("Ping sample size", playerSample); // Paper - Use logger // Janky Paper - styled logs
+     }
+ 
+     public static int playerShuffle;

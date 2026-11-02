@@ -1,0 +1,66 @@
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -433,6 +_,7 @@
+ 
+         private void sendChunk(final int chunkX, final int chunkZ) {
+             if (this.sentChunks.add(CoordinateUtils.getChunkKey(chunkX, chunkZ))) {
++                if (this.player.jankyBot) return; // Janky Paper - lightweight bots - no client, nothing to serialise or watch
+                 ((ChunkSystemChunkHolder)((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager
+                         .getChunkHolder(chunkX, chunkZ).vanillaChunkHolder).moonrise$addReceivedChunk(this.player);
+ 
+@@ -453,6 +_,7 @@
+         }
+ 
+         private void sendUnloadChunkRaw(final int chunkX, final int chunkZ) {
++            if (this.player.jankyBot) return; // Janky Paper - lightweight bots
+             PlatformHooks.get().onChunkUnWatch(this.world, new ChunkPos(chunkX, chunkZ), this.player);
+             // Note: Check PlayerChunkSender#dropChunk for other logic
+             // Note: drop isAlive() check so that chunks properly unload client-side when the player dies
+@@ -583,19 +_,19 @@
+         private double getMaxChunkLoadRate() {
+             final double configRate = PlatformHooks.get().configPlayerMaxLoadRate();
+ 
+-            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.max(1.0, configRate);
++            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.min((double)MAX_RATE, Math.max(1.0, configRate * dev.jankypaper.server.focus.FocusManager.chunkRateScale(this.player))); // Janky Paper - focus mode
+         }
+ 
+         private double getMaxChunkGenRate() {
+             final double configRate = PlatformHooks.get().configPlayerMaxGenRate();
+ 
+-            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.max(1.0, configRate);
++            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.min((double)MAX_RATE, Math.max(1.0, configRate * dev.jankypaper.server.focus.FocusManager.chunkRateScale(this.player))); // Janky Paper - focus mode
+         }
+ 
+         private double getMaxChunkSendRate() {
+             final double configRate = PlatformHooks.get().configPlayerMaxSendRate();
+ 
+-            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.max(1.0, configRate);
++            return configRate <= 0.0 || configRate > (double)MAX_RATE ? (double)MAX_RATE : Math.min((double)MAX_RATE, Math.max(1.0, configRate * dev.jankypaper.server.focus.FocusManager.chunkRateScale(this.player))); // Janky Paper - focus mode
+         }
+ 
+         private long getMaxChunkLoads() {
+@@ -607,6 +_,7 @@
+             } else if (configLimit < 0L) {
+                 configLimit = Integer.MAX_VALUE;
+             } // else: use the value configured
++            configLimit = Math.max(1L, (long)Math.min((double)Integer.MAX_VALUE, configLimit * dev.jankypaper.server.focus.FocusManager.chunkRateScale(this.player))); // Janky Paper - focus mode
+             configLimit = configLimit - this.loadingQueue.size();
+ 
+             return configLimit;
+@@ -621,6 +_,7 @@
+             } else if (configLimit < 0L) {
+                 configLimit = Integer.MAX_VALUE;
+             } // else: use the value configured
++            configLimit = Math.max(1L, (long)Math.min((double)Integer.MAX_VALUE, configLimit * dev.jankypaper.server.focus.FocusManager.chunkRateScale(this.player))); // Janky Paper - focus mode
+             configLimit = configLimit - this.generatingQueue.size();
+ 
+             return configLimit;
+@@ -735,7 +_,7 @@
+                     final int queuedChunkX = CoordinateUtils.getChunkX(queuedLoadChunk);
+                     final int queuedChunkZ = CoordinateUtils.getChunkZ(queuedLoadChunk);
+                     ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
+-                        queuedChunkX, queuedChunkZ, ChunkStatus.EMPTY, false, Priority.NORMAL, null
++                        queuedChunkX, queuedChunkZ, ChunkStatus.EMPTY, false, dev.jankypaper.server.focus.FocusManager.isFocused(this.player) ? Priority.HIGHER : Priority.NORMAL, null // Janky Paper - focus mode
+                     );
+                     if (this.removed) {
+                         return;

@@ -1,0 +1,11 @@
+--- a/src/main/java/com/destroystokyo/paper/profile/PaperServicesDiscoveryService.java
++++ b/src/main/java/com/destroystokyo/paper/profile/PaperServicesDiscoveryService.java
+@@ -31,7 +_,7 @@
+         final boolean servicesKeySetEnabled,
+         final Environment environment
+     ) {
+-        LOGGER.info("Environment: {}", environment);
++        LOGGER.debug("Environment: {}", environment); // Janky Paper - console noise
+         return new PaperServicesDiscoveryService(
+             proxy,
+             servicesKeySetEnabled,

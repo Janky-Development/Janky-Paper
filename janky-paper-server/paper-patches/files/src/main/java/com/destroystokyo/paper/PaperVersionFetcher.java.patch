@@ -1,0 +1,11 @@
+--- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
++++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+@@ -92,7 +_,7 @@
+                     COMPONENT_LOGGER.warn(text(DOWNLOAD_PAGE));
+                     COMPONENT_LOGGER.warn(text("*************************************************************************************"));
+                 });
+-                case DISTANCE_UNKNOWN -> COMPONENT_LOGGER.warn(text("*** You are running an unknown version! Cannot fetch version info ***"));
++                case DISTANCE_UNKNOWN -> dev.jankypaper.server.log.JankyLog.warn("Development build - update checks are unavailable for this version"); // Janky Paper - styled logs
+                 default -> {
+                     if (apiResult.isPresent()) {
+                         final MinecraftVersionFetcher result = apiResult.get();

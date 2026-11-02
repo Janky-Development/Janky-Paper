@@ -1,5 +1,3 @@
 @echo off
 gradlew.bat rebuildPaperPatches
-gradlew.bat rebuildPaperServerPatches
-gradlew.bat rebuildServerPatches
-gradlew.bat rebuildMinecraftPatches
+gradlew.bat rebuildAllServerPatches

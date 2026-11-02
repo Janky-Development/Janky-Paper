@@ -1,0 +1,41 @@
+--- a/io/papermc/paper/entity/activation/ActivationRange.java
++++ b/io/papermc/paper/entity/activation/ActivationRange.java
+@@ -142,6 +_,7 @@
+         maxRange = Math.max(maxRange, villagerActivationRange);
+         maxRange = Math.min((world.spigotConfig.simulationDistance << 4) - 8, maxRange);
+ 
++        final it.unimi.dsi.fastutil.longs.LongOpenHashSet jankyBotChunks = new it.unimi.dsi.fastutil.longs.LongOpenHashSet(); // Janky Paper - lightweight bots
+         for (final Player player : world.players()) {
+             player.activatedTick = MinecraftServer.currentTick;
+             if (world.spigotConfig.ignoreSpectatorActivation && player.isSpectator()) {
+@@ -149,14 +_,22 @@
+             }
+ 
+             final int worldHeight = world.getHeight();
+-            ActivationRange.maxBB = player.getBoundingBox().inflate(maxRange, worldHeight, maxRange);
+-            ActivationType.MISC.boundingBox = player.getBoundingBox().inflate(miscActivationRange, worldHeight, miscActivationRange);
+-            ActivationType.RAIDER.boundingBox = player.getBoundingBox().inflate(raiderActivationRange, worldHeight, raiderActivationRange);
+-            ActivationType.ANIMAL.boundingBox = player.getBoundingBox().inflate(animalActivationRange, worldHeight, animalActivationRange);
+-            ActivationType.MONSTER.boundingBox = player.getBoundingBox().inflate(monsterActivationRange, worldHeight, monsterActivationRange);
+-            ActivationType.WATER.boundingBox = player.getBoundingBox().inflate(waterActivationRange, worldHeight, waterActivationRange);
+-            ActivationType.FLYING_MONSTER.boundingBox = player.getBoundingBox().inflate(flyingActivationRange, worldHeight, flyingActivationRange);
+-            ActivationType.VILLAGER.boundingBox = player.getBoundingBox().inflate(villagerActivationRange, worldHeight, villagerActivationRange);
++            final double focusScale = dev.jankypaper.server.focus.FocusManager.activationScale(player); // Janky Paper - focus mode
++            // Janky Paper start - lightweight bots: one activation pass per chunk of bots, padded to cover the whole chunk
++            final double jankyPad = player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot
++                ? (jankyBotChunks.add(player.chunkPosition().longKey()) ? 16.0 : -1.0) : 0.0;
++            if (jankyPad < 0.0) {
++                continue;
++            }
++            // Janky Paper end - lightweight bots
++            ActivationRange.maxBB = player.getBoundingBox().inflate(maxRange * focusScale + jankyPad, worldHeight, maxRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.MISC.boundingBox = player.getBoundingBox().inflate(miscActivationRange * focusScale + jankyPad, worldHeight, miscActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.RAIDER.boundingBox = player.getBoundingBox().inflate(raiderActivationRange * focusScale + jankyPad, worldHeight, raiderActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.ANIMAL.boundingBox = player.getBoundingBox().inflate(animalActivationRange * focusScale + jankyPad, worldHeight, animalActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.MONSTER.boundingBox = player.getBoundingBox().inflate(monsterActivationRange * focusScale + jankyPad, worldHeight, monsterActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.WATER.boundingBox = player.getBoundingBox().inflate(waterActivationRange * focusScale + jankyPad, worldHeight, waterActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.FLYING_MONSTER.boundingBox = player.getBoundingBox().inflate(flyingActivationRange * focusScale + jankyPad, worldHeight, flyingActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
++            ActivationType.VILLAGER.boundingBox = player.getBoundingBox().inflate(villagerActivationRange * focusScale + jankyPad, worldHeight, villagerActivationRange * focusScale + jankyPad); // Janky Paper - focus mode, lightweight bots
+ 
+             final List<Entity> entities = world.getEntities((Entity) null, ActivationRange.maxBB, e -> true);
+             final boolean tickMarkers = world.paperConfig().entities.markers.tick;
