@@ -1,0 +1,20 @@
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -999,6 +_,17 @@
+         return bukkitEntityList;
+     }
+ 
++    // Janky Paper start - typed nearby-entity lookups
++    @Override
++    public <T extends Entity> Collection<T> getNearbyEntitiesByType(final @org.jspecify.annotations.Nullable Class<? extends T> clazz, final Location loc, final double xRadius, final double yRadius, final double zRadius, final @org.jspecify.annotations.Nullable Predicate<? super T> predicate) {
++        org.spigotmc.AsyncCatcher.catchOp("getNearbyEntities"); // Spigot
++        Preconditions.checkArgument(loc != null, "Location cannot be null");
++        Preconditions.checkArgument(this.equals(loc.getWorld()), "Location cannot be in a different world");
++        final Collection<T> typed = dev.jankypaper.server.world.TypedEntityLookup.nearby(this.getHandle(), clazz, loc.getX(), loc.getY(), loc.getZ(), xRadius, yRadius, zRadius, predicate);
++        return typed != null ? typed : World.super.getNearbyEntitiesByType(clazz, loc, xRadius, yRadius, zRadius, predicate);
++    }
++    // Janky Paper end - typed nearby-entity lookups
++
+     @Override
+     public RayTraceResult rayTraceEntities(io.papermc.paper.math.Position start, Vector direction, double maxDistance, double raySize, Predicate<? super Entity> filter) {
+         Preconditions.checkArgument(start != null, "Location start cannot be null");

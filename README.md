@@ -50,6 +50,7 @@ Paper's changes are patches on top of it.
 | **Lightweight bots** | Players on a fake connection skip all the per-player work that only exists to feed a real game client (chunk packets, entity tracking, advancements, tab-list refreshes, command tree, ...). Turns several bots x bots costs into per-bot costs. | `dev.jankypaper.server.bot.BotPlayers` |
 | **Player grid** | Mob "nearest player" searches (despawn checks, targeting, tempting, spawner activation) use a per-tick spatial index instead of scanning every player in the world. Exact same results; handles thousands of bots in one chunk. | `dev.jankypaper.server.bot.PlayerGrid` |
 | **Bot worker threads** | Plugins can run bot path searches on spare CPU cores; block reads from those threads never load chunks. FPP uses them automatically. | `dev.jankypaper.server.bot.BotWorkerThreads` |
+| **Typed nearby-entity lookups** | `World#getNearbyEntitiesByType(Class, ...)` uses the per-type entity index when the class covers only a few entity types (arrows, TNT minecarts, items, ...), instead of fetching every entity in the box and filtering. Helps every plugin; in a crowd of bots it no longer walks every bot to find one arrow. | `dev.jankypaper.server.world.TypedEntityLookup` |
 | **Focus mode** | `/focus` pours view distance, simulation distance, chunk-loading speed and entity activation into the players/areas being recorded, and throttles everyone else only under load. | `dev.jankypaper.server.focus` |
 | **Whole-CPU chunk system** | Chunk loading/generation defaults to every core but two (Paper: about a quarter). | `MoonriseCommon` patch |
 | **Console theme** | A styled, colour-coded console (boot header, startup/shutdown banners, `[ᴊᴀɴᴋʏ]` tag) that keeps Paper's standard `latest.log` format. | `dev.jankypaper.server.log` |
@@ -137,6 +138,9 @@ bots:
   view-distance: 3           # view distance a bot joins with (2-32, -1 = world value)
   simulation-distance: -1    # simulation distance a bot joins with (2-32, -1 = world value)
   vanilla-push: false        # true = restore vanilla bot-on-bot pushing (costs bots x bots per tick)
+  affect-mob-spawning: true  # false = no natural mob spawning around bots (crops/random ticks keep running)
+  activation-range-multiplier: 0.5  # entity activation range around bots, as a multiple of spigot.yml's
+  mob-spawn-representative-every: 1000  # above this many bots, only 1 in (online / this) counts for mob caps
 ```
 
 ### `focus` keys
@@ -161,6 +165,9 @@ bots:
 | `view-distance` | `3` | View distance set on a bot when it joins. Small on purpose: every chunk in view is kept loaded per bot. A plugin may change it afterwards (FPP's `performance.bot-view-distance` does). |
 | `simulation-distance` | `-1` | Simulation distance set on a bot when it joins. `-1` = the world's value, capped by the bot's view distance (so 3 with the default view distance). This is how far around each bot chunks tick and mobs spawn. |
 | `vanilla-push` | `false` | Vanilla makes every player check every nearby entity for pushing each tick - with a crowd of bots that is bots x bots. Off by default; mobs still push bots, and FPP runs its own crowd separation. |
+| `affect-mob-spawning` | `true` | Whether bots make mobs spawn around them like real players. With thousands of bots spread out, natural spawning around all of them is one of the largest remaining costs (~10% of the tick at 10,000 roaming bots). `false` leaves bots out of natural spawning, despawn distance checks and spawners; chunks around bots still tick (crops grow, furnaces run), and real players spawn mobs normally. |
+| `activation-range-multiplier` | `0.5` | Multiplies the `spigot.yml` entity activation ranges around each bot. Mobs that are only near bots - not near any real player - keep full AI within half the usual range and run Spigot's cheap inactive tick beyond it. Real players keep their full ranges, so anything near you behaves normally. `1.0` = treat bots like players. |
+| `mob-spawn-representative-every` | `1000` | Paper's per-player mob caps cost mobs x players every tick (each mob adds itself to every nearby player's count; each spawn attempt checks every nearby player). Up to this many bots online every bot counts as a mob-spawning player, exactly like vanilla - an AFK bot at a farm behaves normally. Above it, only one bot in `online / this` counts (chosen by UUID, re-checked as the count changes), so a 10,000-bot crowd costs and spawns mobs like a ~1,000-bot crowd. `0` = every bot always counts. |
 
 ---
 
@@ -202,12 +209,18 @@ changes or API calls are needed, so it works for any fake-player plugin that use
 | **Join player list** | Each joining bot was sent the whole player list. | bots x bots |
 | **Positional sounds / particles / `broadcastAll`** | Every broadcast looped over every bot. Bots are skipped. | broadcasts x bots |
 | **Command tree packet** | The full Brigadier tree was built for each joining bot (tab completion on a client). | bots |
+| **Join-time work** | Each joining player is offered every tracked entity as a viewer, is added to `usercache.json` (which re-sorts and re-saves the whole cache), is counted for sleeping, and receives the join message - all skipped for bots. Bots also no longer block real players from skipping the night by sleeping. | bots x bots |
+| **System broadcasts** | Join / leave / death messages and other system broadcasts go to real players only. Messages addressed to a bot directly still arrive. | broadcasts x bots |
 | **Locator bar** | Every player tracked every other player as a waypoint (`bots x bots` connection objects). Bots don't receive a locator bar; they still appear on real players' bars. | bots x bots |
 | **Unused nearby-player maps** | Moonrise keeps three "general" nearby-player maps the server never reads; each bot took a slot in every chunk within 33 chunks. | bots x chunks |
 | **Vanilla bot-on-bot pushing** | Each bot checked every entity in its hitbox (plus a climbable-block lookup per candidate). Configurable: `bots.vanilla-push`. | bots x bots |
 | **Item-pickup scan** | Each bot scanned every nearby entity (including every other bot) each tick. Bots now only look up entity classes that react to a touch: items, XP orbs, arrows/tridents, slimes/sulfur cubes, pufferfish. | bots x bots |
 | **Entity activation** | Activation ranges were computed once per bot. Now once per chunk that holds bots (box padded to cover the chunk). | bots x entities |
-| **Container sync, stat counter, debug-subscription check** | Per-tick work that only feeds a client. Stat-tracking scoreboards still update for bots. | bots |
+| **Container sync, stat counter, debug-subscription check, map-item sync** | Per-tick work that only feeds a client. Stat-tracking scoreboards still update for bots. | bots |
+| **Chunk-loader ticking** | Each bot's chunk-loading queues are processed every other tick (half of the bots each tick). | bots |
+| **Per-player mob caps** | Above `mob-spawn-representative-every` bots, only a share of the bots count for Paper's per-player mob caps (every mob tick and spawn attempt loops over the players in range). | mobs x bots |
+| **Per-tick per-player busywork** | Bots skip the network flush, the per-tick `PlayerNaturallySpawnCreaturesEvent` (its spawn radius is kept), and update their attribute modifiers once a second. Endermen never treat a bot as staring at them. | bots |
+| **Mob despawn checks** | With more than 64 players in a world, each mob checks for despawning every 4th tick (staggered) instead of every tick; the random despawn chance is scaled so despawn rates stay the same. | mobs x players |
 
 ### What bots keep
 
@@ -283,6 +296,11 @@ try {
     // not Janky Paper - keep searching on the main thread
 }
 ```
+
+A second optional hook makes spawning bots cheaper: call `BotPlayers.expectBot(UUID)` (same reflection
+pattern, `dev.jankypaper.server.bot.BotPlayers`, `static void expectBot(UUID)`) right before constructing a
+bot's `ServerPlayer`, and the server skips loading advancement progress the bot would never use. Bots are
+still detected by their connection either way.
 
 Rules for code running on those threads:
 
@@ -376,31 +394,54 @@ Janky Paper works with any FPP build, but these FPP features use it:
 | `/fpp roam @a` | Starts every selected bot on the same tick (the old `roam-start-batch-size` setting was removed). |
 | `performance.bot-view-distance` | `0` leaves Janky Paper's `bots.view-distance` (3) in place. Set a value only if your bots need to keep more chunks loaded (e.g. farms). |
 | CPU-load sampling | FPP's performance monitor reads CPU load on an async thread (it was a slow native call on the main thread). |
+| Spawn pacing | Bots are placed into the world under a 25 ms per-tick budget. A big `/fpp spawn` used to place every bot whose async steps finished in the same tick - over a minute in one tick at 10,000 bots, enough to trip the watchdog. |
+| Stuck recovery | When a walking bot gets stuck, its replan runs on a worker thread too (a crowd of thousands starting to walk at once used to stall the main thread for seconds). |
+| Head glances | A walking bot only checks real players for something to glance at, instead of scanning every entity around it (that scan was nearly the whole tick with 10,000 bots roaming in a crowd). |
+| `expectBot` hook | FPP announces each bot to Janky Paper before creating it, so its advancement progress is never loaded. |
+| **Bot detail levels** (`performance.bot-detail`) | Bots within `full-detail-range` (48 blocks) of a real player run every tick. Bots further away run every Nth tick - `mid-interval` (2) when busy within `mid-range` (128), `far-interval` (4) further out, `combat-interval` (2) when fighting or hurt, `idle-interval` (20) when standing with nothing to do - and the intervals grow with the bot count (x1 per `crowd-scale` = 2500 bots online, up to `max-crowd-multiplier` = 4). Falling, water, lava, fire, surfacing for air and elytra flight always run at full detail; a knocked-back bot was hurt, so it uses the combat interval. On a skipped tick a bot simply stands still, so far-away bots walk and fight slower while nobody is around to see them. Ticks are staggered per bot so the load spreads evenly. Paper only; `enabled: false` turns it off. |
+| Crowd separation | Bots are bucketed into a spatial hash (cells one collision radius wide) every 5 ticks; each bot only checks bots in the 3x3 cells around it, at most 12 neighbours, and its pushes are summed and applied once. The old Paper pass compared bots in list order (so crowds barely separated at scale); the Folia pass called `getNearbyPlayers` per bot (bots x bots). |
+| Combat targeting | Target pick, rebalance, nearest-threat and retreat-direction searches use a per-tick spatial index of players and consider the 32 nearest candidates in range, instead of every player in aggro range for every fighting bot (a 10,000-bot free-for-all froze the server for minutes). Folia keeps its region-local lookups. |
+| Player movement push | A real player's move event only checks the bots within reach of it (it used to copy and walk the whole bot list on every move event). |
 
 **Recommended:**
 - Keep `bots.view-distance` small (2-4) unless bots must keep farms loaded: every chunk in view is kept
   loaded per bot.
 - Leave `bots.vanilla-push: false` and keep FPP's own collision/separation enabled.
+- If you don't need mobs to spawn around bots, set `bots.affect-mob-spawning: false`.
 - Turn FPP's self-profiler (`performance.self-profiler`) off in production; it adds overhead per bot.
 
 ---
 
 ## Measured results
 
-Measured on the dev server (Windows, 12 CPU threads, 4-5 GB heap) with FPP 0.28.1, all bots spawned
-at the same spot - the worst case for crowd costs. MSPT = milliseconds per tick; 50 ms = full 20 TPS.
+Measured on the dev server (Windows, 12 CPU threads, 5-12 GB heap) with the bundled FPP build, all bots spawned at
+the same spot - the worst case for crowd costs. MSPT = milliseconds per tick; 50 ms = full 20 TPS.
 
-| Bots | Stock behaviour | After lightweight bots (round 1) | After pickup-scan fix (round 2) |
+**Steady state, idle bots** (all bots standing around):
+
+| Bots | Stock behaviour | Round 1 (lightweight bots) | Round 2 (pickup scan) | Current |
+|---|---|---|---|---|
+| 500 | ~71 ms | ~19 ms | ~14 ms | ~10 ms |
+| 2,000 | ~2,500 ms | ~111 ms | ~61 ms | ~40 ms |
+| 5,000 | out of memory (4 GB) | ~480 ms | ~150 ms | ~100 ms |
+| 10,000 | - | - | ~200 ms | ~230-300 ms right after spawning |
+
+**10,000 bots, current build** (no real player online, so every bot is "far from the camera" and uses FPP's
+bot detail levels; with you online, bots within 48 blocks of you run at full detail):
+
+| Scenario | Before bot detail levels | With bot detail levels | Now (mob-side round) |
 |---|---|---|---|
-| 500 | ~71 ms | ~19 ms | ~14 ms |
-| 2,000 | ~2,500 ms | ~111 ms | ~61 ms |
-| 5,000 | out of memory (4 GB) | ~480 ms | ~150 ms |
-| 10,000 | - | - | ~200 ms idle, ~600-740 ms all roaming |
+| `fpp spawn 10000` (one command) | single ticks of 25-84 s before spawn pacing | ~4 min to place all 10,000 (part of it is Mojang's skin-lookup rate limit), worst tick ~1-3 s | same |
+| Idle | ~230-300 ms | ~140 ms (~7 TPS) | **~78 ms (~13 TPS)** |
+| `fpp roam @a` | ~380-490 ms | ~190 ms (~5 TPS) | ~200-230 ms (~4.5-5 TPS) |
+| `fpp attack @a` (free-for-all) | ~550-650 ms (minutes-long freezes before the combat index) | ~380 ms (~2.6 TPS) | ~390-480 ms (~2-2.5 TPS) |
 
-In the 10,000-bot roaming profile, about half of the tick was mob nearest-player searches; the
-[player grid](#player-grid-mob-nearest-player-searches), the command-tree/stat/container cuts and bot
-worker threads were added after that and **have not been benchmarked yet**. Results on your host
-depend on its single-core speed (the main thread), how spread out the bots are, and what else runs.
+Run-to-run noise is about +-15%.
+
+What is left at 10,000 idle bots is mostly the mobs around them (natural spawning, mob AI and despawn checks -
+see `bots.affect-mob-spawning` and `bots.activation-range-multiplier`), per-bot chunk loading, and the server's own
+per-player bookkeeping. 20 TPS holds up to roughly 2,000-2,500 bots at full detail on this machine. Results on your host depend mostly on its single-core speed (the main thread), how
+spread out the bots are, and what else runs.
 
 ---
 

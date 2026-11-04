@@ -1,0 +1,10 @@
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -578,6 +_,7 @@
+             for (ServerPlayer player : this.level.players()) {
+                 int chunkRange = Math.min(level.spigotConfig.mobSpawnRange, player.getBukkitEntity().getViewDistance());
+                 chunkRange = Math.min(chunkRange, 8);
++                if (player.jankyBot && player.playerNaturallySpawnedEvent != null && player.playerNaturallySpawnedEvent.getSpawnRadius() == chunkRange && !player.playerNaturallySpawnedEvent.isCancelled()) continue; // Janky Paper - lightweight bots - keep the bot's spawn radius, skip firing an event per bot per tick
+                 player.playerNaturallySpawnedEvent = new com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent(player.getBukkitEntity(), (byte) chunkRange);
+                 player.playerNaturallySpawnedEvent.callEvent();
+             }

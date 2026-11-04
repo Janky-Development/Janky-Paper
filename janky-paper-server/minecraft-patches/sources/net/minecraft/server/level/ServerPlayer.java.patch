@@ -17,6 +17,24 @@
              this.containerMenu.broadcastChanges();
              // Broadcast equipment and crafting slots when the player is in a container, fixes MC-297508
              if (this.containerMenu != this.inventoryMenu) {
+@@ -771,7 +_,7 @@
+ 
+         this.trackStartFallingPosition();
+         this.trackEnteredOrExitedLavaOnVehicle();
+-        this.updatePlayerAttributes();
++        if (!this.jankyBot || (this.tickCount + this.getId()) % 20 == 0) this.updatePlayerAttributes(); // Janky Paper - lightweight bots - game mode / crouch modifiers, once a second is plenty
+         this.advancements.flushDirty(this, true);
+         if (this.postEffectsDirty) {
+             this.sendPostEffects();
+@@ -832,7 +_,7 @@
+                 }
+             }
+ 
+-            for (int i = 0; i < this.getInventory().getContainerSize(); i++) {
++            for (int i = 0; !this.jankyBot && i < this.getInventory().getContainerSize(); i++) { // Janky Paper - lightweight bots - map item updates only feed a client
+                 ItemStack itemStack = this.getInventory().getItem(i);
+                 if (!itemStack.isEmpty()) {
+                     this.synchronizeSpecialItemUpdates(itemStack);
 @@ -1844,6 +_,7 @@
  
      @Override

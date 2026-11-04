@@ -1,5 +1,13 @@
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -312,6 +_,7 @@
+                 // not our problem anymore
+                 continue;
+             }
++            if (player.jankyBot && ((net.minecraft.server.MinecraftServer.currentTick + loader.id) & 1L) != 0L) continue; // Janky Paper - lightweight bots - bots' chunk queues run every other tick, half of them each tick
+             loader.update(); // can't invoke plugin logic
+             loader.updateQueues(currTime);
+         }
 @@ -433,6 +_,7 @@
  
          private void sendChunk(final int chunkX, final int chunkZ) {

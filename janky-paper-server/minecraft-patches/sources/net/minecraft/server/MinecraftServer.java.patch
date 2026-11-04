@@ -101,6 +101,15 @@
          if (nano - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
              this.lastServerStatus = nano;
              this.status = this.buildServerStatus();
+@@ -1838,7 +_,7 @@
+ 
+         for (ServerPlayer player : this.playerList.getPlayers()) {
+             player.connection.chunkSender.sendNextChunks(player);
+-            player.connection.resumeFlushing();
++            if (!player.jankyBot) player.connection.resumeFlushing(); // Janky Paper - lightweight bots - a fake connection drops every packet; nothing to flush
+         }
+ 
+         profiler.pop();
 @@ -2004,7 +_,7 @@
      }
  

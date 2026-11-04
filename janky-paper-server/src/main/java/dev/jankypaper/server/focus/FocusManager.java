@@ -61,6 +61,12 @@ public final class FocusManager {
           lightweight: false turns this off. view-distance / simulation-distance are the defaults a
           bot joins with (-1 = world value); the plugin may still change them per bot.
           vanilla-push: true restores vanilla bot-on-bot pushing (costs bots x bots per tick).
+          affect-mob-spawning: false stops natural mob spawning around bots (a big saving with thousands of
+          bots spread out); crops and other random ticks near bots keep running.
+          activation-range-multiplier scales the entity activation ranges around bots: mobs further than that
+          from every bot and every real player run Spigot's cheap inactive tick. Real players are unaffected.
+          mob-spawn-representative-every: up to this many bots online every bot counts for per-player mob caps;
+          above it only one bot in (online / this) does, so huge crowds spawn mobs like ~this many bots. 0 = all.
           Bots are left out of focus mode unless added with /focus add.""";
 
     private static FocusSettings settings = FocusSettings.DEFAULTS;
@@ -92,7 +98,11 @@ public final class FocusManager {
         if (focusedNow.contains(player.getUUID())) {
             return activeSettings.focused().activationRangeMultiplier();
         }
-        return throttling ? activeSettings.others().activationRangeMultiplier() : 1.0;
+        final double scale = throttling ? activeSettings.others().activationRangeMultiplier() : 1.0;
+        // a bot keeps a smaller radius of mobs fully active (real players keep their own full range around them)
+        return player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot
+            ? scale * dev.jankypaper.server.bot.BotPlayers.activationRangeMultiplier()
+            : scale;
     }
 
     public static boolean isFocused(final Entity player) {

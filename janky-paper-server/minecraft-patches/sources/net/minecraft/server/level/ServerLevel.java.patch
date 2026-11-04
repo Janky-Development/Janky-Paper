@@ -8,10 +8,24 @@
      private EnvironmentAttributeSystem environmentAttributes;
      // Paper - rewrite chunk system
      private final GameEventDispatcher gameEventDispatcher;
-@@ -2429,6 +_,7 @@
+@@ -1180,7 +_,7 @@
+     }
  
-         for (int i = 0; i < receivers.size(); i++) { // Paper - particle API
-             ServerPlayer player = receivers.get(i); // Paper - particle API
+     public void updateSleepingPlayerList() {
+-        if (!this.players.isEmpty() && this.sleepStatus.update(this.players)) {
++        if (!this.players.isEmpty() && this.sleepStatus.update(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players))) { // Janky Paper - lightweight bots - bots never sleep; they must not block skipping the night
+             this.announceSleepStatus();
+         }
+     }
+@@ -2427,8 +_,10 @@
+         );
+         int result = 0;
+ 
+-        for (int i = 0; i < receivers.size(); i++) { // Paper - particle API
+-            ServerPlayer player = receivers.get(i); // Paper - particle API
++        final List<ServerPlayer> jankyReceivers = receivers == this.players ? dev.jankypaper.server.bot.BotPlayers.realPlayers(receivers) : receivers; // Janky Paper - lightweight bots - a sprinting bot's particles must not loop over every bot (only the world's own list is cached)
++        for (int i = 0; i < jankyReceivers.size(); i++) { // Paper - particle API
++            ServerPlayer player = jankyReceivers.get(i); // Paper - particle API // Janky Paper - lightweight bots
 +            if (player.jankyBot) continue; // Janky Paper - lightweight bots
              if (sender != null && !player.getBukkitEntity().canSee(sender.getBukkitEntity())) continue; // CraftBukkit
              if (this.sendParticles(player, overrideLimiter, x, y, z, packet)) {

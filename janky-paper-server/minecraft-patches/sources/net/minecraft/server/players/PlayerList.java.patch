@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -159,6 +_,7 @@
+@@ -159,13 +_,14 @@
  
      public void placeNewPlayer(final Connection connection, final ServerPlayer player, final CommonListenerCookie cookie) {
          player.isRealPlayer = true; // Paper
@@ -8,6 +8,14 @@
          player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
          NameAndId gameProfile = player.nameAndId();
          UserNameToIdResolver profileCache = this.server.services().nameToIdCache();
+         Optional<NameAndId> oldProfile = profileCache.get(gameProfile.id());
+         String oldName = oldProfile.map(NameAndId::name).orElse(gameProfile.name());
+         if (player.lastKnownName != null) { oldName = player.lastKnownName; player.lastKnownName = null; } // CraftBukkit - Better rename detection
+-        profileCache.add(gameProfile);
++        if (!player.jankyBot) profileCache.add(gameProfile); // Janky Paper - lightweight bots - adding re-sorts and re-saves usercache.json on every join
+         ServerLevel level = player.level();
+         String address = connection.getLoggableAddress(this.server.logIPs());
+         LevelData levelData = level.getLevelData();
 @@ -263,7 +_,7 @@
          for (int i = 0; i < this.players.size(); ++i) {
              ServerPlayer entityplayer1 = (ServerPlayer) this.players.get(i);
@@ -34,19 +42,24 @@
          player.awardStat(Stats.LEAVE_GAME);
          // CraftBukkit start - Quitting must be before we do final save of data, in case plugins need to modify it
          // See SPIGOT-5799, SPIGOT-6145
-@@ -746,6 +_,7 @@
+@@ -744,8 +_,9 @@
+     public void tick() {
+         if (++this.sendAllPlayerInfoIn > 600) {
              // CraftBukkit start
-             for (int i = 0; i < this.players.size(); ++i) {
-                 final ServerPlayer target = this.players.get(i);
-+                if (target.jankyBot) continue; // Janky Paper - lightweight bots
+-            for (int i = 0; i < this.players.size(); ++i) {
+-                final ServerPlayer target = this.players.get(i);
++            final List<ServerPlayer> jankyTargets = dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players); // Janky Paper - lightweight bots - bots get no tab list
++            for (int i = 0; i < jankyTargets.size(); ++i) {
++                final ServerPlayer target = jankyTargets.get(i); // Janky Paper - lightweight bots
  
                  target.connection.send(new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY), com.google.common.collect.Collections2.filter(this.players, t -> target.getBukkitEntity().canSee(t.getBukkitEntity()))));
              }
-@@ -757,6 +_,7 @@
+@@ -756,7 +_,7 @@
+ 
      // CraftBukkit start - add a world/entity limited version
      public void broadcastAll(Packet packet, net.minecraft.world.entity.player.Player entityhuman) {
-         for (ServerPlayer entityplayer : this.players) { // Paper - replace for i with for each for thread safety
-+            if (entityplayer.jankyBot) continue; // Janky Paper - lightweight bots
+-        for (ServerPlayer entityplayer : this.players) { // Paper - replace for i with for each for thread safety
++        for (ServerPlayer entityplayer : dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players)) { // Paper - replace for i with for each for thread safety // Janky Paper - lightweight bots
              if (entityhuman != null && !entityplayer.getBukkitEntity().canSee(entityhuman.getBukkitEntity())) {
                  continue;
              }
@@ -58,27 +71,40 @@
              ((ServerPlayer) world.players().get(i)).connection.send(packet);
          }
  
-@@ -774,13 +_,14 @@
+@@ -773,13 +_,13 @@
+     // CraftBukkit end
  
      public void broadcastAll(final Packet<?> packet) {
-         for (ServerPlayer player : this.players) {
-+            if (player.jankyBot) continue; // Janky Paper - lightweight bots
+-        for (ServerPlayer player : this.players) {
++        for (ServerPlayer player : dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players)) { // Janky Paper - lightweight bots
              player.connection.send(packet);
          }
      }
  
      public void broadcastAll(final Packet<?> packet, final ResourceKey<Level> dimension) {
-         for (ServerPlayer player : this.players) {
--            if (player.level().dimension() == dimension) {
-+            if (player.level().dimension() == dimension && !player.jankyBot) { // Janky Paper - lightweight bots
+-        for (ServerPlayer player : this.players) {
++        for (ServerPlayer player : dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players)) { // Janky Paper - lightweight bots
+             if (player.level().dimension() == dimension) {
                  player.connection.send(packet);
              }
-         }
-@@ -939,6 +_,7 @@
+@@ -937,8 +_,9 @@
+         final ResourceKey<Level> dimension,
+         final Packet<?> packet
      ) {
-         for (int i = 0; i < this.players.size(); i++) {
-             ServerPlayer player = this.players.get(i);
-+            if (player.jankyBot) continue; // Janky Paper - lightweight bots
+-        for (int i = 0; i < this.players.size(); i++) {
+-            ServerPlayer player = this.players.get(i);
++        final List<ServerPlayer> jankyReceivers = dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players); // Janky Paper - lightweight bots - a bot's footstep must not loop over every bot
++        for (int i = 0; i < jankyReceivers.size(); i++) {
++            ServerPlayer player = jankyReceivers.get(i); // Janky Paper - lightweight bots
              // CraftBukkit start - Test if player receiving packet can see the source of the packet
              if (except != null && !player.getBukkitEntity().canSee(except.getBukkitEntity())) {
                 continue;
+@@ -1107,7 +_,7 @@
+     public void broadcastSystemMessage(final Component message, final Function<ServerPlayer, Component> playerMessages, final boolean overlay) {
+         this.server.sendSystemMessage(message);
+ 
+-        for (ServerPlayer player : this.players) {
++        for (ServerPlayer player : dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players)) { // Janky Paper - lightweight bots - join/leave/death messages go to real players
+             Component playerMessage = playerMessages.apply(player);
+             if (playerMessage != null) {
+                 player.sendSystemMessage(playerMessage, overlay);

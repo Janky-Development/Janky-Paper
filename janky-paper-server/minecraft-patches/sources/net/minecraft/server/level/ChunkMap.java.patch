@@ -1,0 +1,29 @@
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1010,11 +_,11 @@
+                 // note: the tick loop is OK when adding entities
+                 this.trackerEntities.add(entity);
+                 // Paper end - optimise entity tracker
+-                trackedEntity.updatePlayers(this.level.players());
++                trackedEntity.updatePlayers(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.level.players())); // Janky Paper - lightweight bots - a new entity is only offered to real viewers
+                 if (entity instanceof ServerPlayer player) {
+                     this.updatePlayerStatus(player, true);
+ 
+-                    for (ChunkMap.TrackedEntity e : this.entityMap.values()) {
++                    if (!player.jankyBot) for (ChunkMap.TrackedEntity e : this.entityMap.values()) { // Janky Paper - lightweight bots - a bot views nothing, skip offering it every entity
+                         if (e.entity != player) {
+                             e.updatePlayer(player);
+                         }
+@@ -1407,6 +_,12 @@
+ 
+         public void updatePlayer(final ServerPlayer player) {
+             org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
++            // Janky Paper start - lightweight bots - bots never view tracked entities, on any path (also addEntity's updatePlayers)
++            if (player.jankyBot) {
++                this.removePlayer(player);
++                return;
++            }
++            // Janky Paper end - lightweight bots
+             if (player != this.entity) {
+                 // Paper start - remove allocation of Vec3 here
+                 // Vec3 deltaToPlayer = player.position().subtract(this.entity.position());
