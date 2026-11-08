@@ -1,0 +1,58 @@
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1166,7 +_,7 @@
+ 
+         final Vec3 originalMovement = delta; // Paper - Expose pre-collision velocity
+         // Paper start - detailed watchdog information
+-        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread("Cannot move an entity off-main");
++        if (!dev.jankypaper.server.bot.BotMovement.isMovementWorker()) ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread("Cannot move an entity off-main"); // Janky Paper - parallel bot movement
+         synchronized (this.posLock) {
+             this.moveStartX = this.getX();
+             this.moveStartY = this.getY();
+@@ -5197,16 +_,7 @@
+                 }
+             }
+ 
+-            this.levelCallback.onMove();
+-            if (!this.firstTick && this.level instanceof ServerLevel serverLevel && !this.isRemoved()) {
+-                if (this instanceof WaypointTransmitter waypoint && waypoint.isTransmittingWaypoint()) {
+-                    serverLevel.getWaypointManager().updateWaypoint(waypoint);
+-                }
+-
+-                if (this instanceof ServerPlayer player && player.isReceivingWaypoints() && player.connection != null) {
+-                    serverLevel.getWaypointManager().updatePlayer(player);
+-                }
+-            }
++            if (this instanceof ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.EXECUTING) jankyBot.jankyMovedOffThread = true; else jankyMoveCallbacks(x, z); // Janky Paper - parallel bot movement - shared structures are updated on the main thread afterwards
+             // Paper start - Fix MC-44654
+             if (!this.getType().hasUpdateInterval()) {
+                 this.needsSync = true;
+@@ -5220,6 +_,28 @@
+         }
+         // Paper end - Block invalid positions and bounding box
+     }
++
++    // Janky Paper start - parallel bot movement
++    /** What a position change tells the shared structures: the entity lookup's sections, the locator bar, the player grid. */
++    private void jankyMoveCallbacks(final double x, final double z) {
++        this.levelCallback.onMove();
++        if (this instanceof ServerPlayer jankyPlayer && jankyPlayer.jankyGridTracker != null) jankyPlayer.jankyGridTracker.moved(x, z); // Janky Paper - player grid - keep its snapshot bounds exact (null only while constructing)
++        if (!this.firstTick && this.level instanceof ServerLevel serverLevel && !this.isRemoved()) {
++            if (this instanceof WaypointTransmitter waypoint && waypoint.isTransmittingWaypoint()) {
++                serverLevel.getWaypointManager().updateWaypoint(waypoint);
++            }
++
++            if (this instanceof ServerPlayer player && player.isReceivingWaypoints() && player.connection != null) {
++                serverLevel.getWaypointManager().updatePlayer(player);
++            }
++        }
++    }
++
++    /** The callbacks {@link #setPosRaw} skipped while this entity moved on a movement worker thread - main thread, after the move. */
++    public final void jankyApplyDeferredMoveCallbacks() {
++        this.jankyMoveCallbacks(this.position.x, this.position.z);
++    }
++    // Janky Paper end - parallel bot movement
+ 
+     public void checkDespawn() {
+     }

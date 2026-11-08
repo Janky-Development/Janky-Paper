@@ -33,6 +33,7 @@ Paper's changes are patches on top of it.
 - [Lightweight bots](#lightweight-bots)
 - [Player grid (mob nearest-player searches)](#player-grid-mob-nearest-player-searches)
 - [Bot worker threads (off-main-thread path searches)](#bot-worker-threads-off-main-thread-path-searches)
+- [Parallel bot movement (experimental)](#parallel-bot-movement-experimental)
 - [Focus mode](#focus-mode)
 - [CPU and threading](#cpu-and-threading)
 - [FPP (Fake Player Plugin Origin) setup](#fpp-fake-player-plugin-origin-setup)
@@ -50,6 +51,7 @@ Paper's changes are patches on top of it.
 | **Lightweight bots** | Players on a fake connection skip all the per-player work that only exists to feed a real game client (chunk packets, entity tracking, advancements, tab-list refreshes, command tree, ...). Turns several bots x bots costs into per-bot costs. | `dev.jankypaper.server.bot.BotPlayers` |
 | **Player grid** | Mob "nearest player" searches (despawn checks, targeting, tempting, spawner activation) use a per-tick spatial index instead of scanning every player in the world. Exact same results; handles thousands of bots in one chunk. | `dev.jankypaper.server.bot.PlayerGrid` |
 | **Bot worker threads** | Plugins can run bot path searches on spare CPU cores; block reads from those threads never load chunks. FPP uses them automatically. | `dev.jankypaper.server.bot.BotWorkerThreads` |
+| **Parallel bot movement** (experimental, off by default) | With a plugin that uses it (FPP), the movement physics of all bots run together on worker threads after the plugin's tick, instead of one by one on the main thread. | `dev.jankypaper.server.bot.BotMovement` |
 | **Typed nearby-entity lookups** | `World#getNearbyEntitiesByType(Class, ...)` uses the per-type entity index when the class covers only a few entity types (arrows, TNT minecarts, items, ...), instead of fetching every entity in the box and filtering. Helps every plugin; in a crowd of bots it no longer walks every bot to find one arrow. | `dev.jankypaper.server.world.TypedEntityLookup` |
 | **Focus mode** | `/focus` pours view distance, simulation distance, chunk-loading speed and entity activation into the players/areas being recorded, and throttles everyone else only under load. | `dev.jankypaper.server.focus` |
 | **Whole-CPU chunk system** | Chunk loading/generation defaults to every core but two (Paper: about a quarter). | `MoonriseCommon` patch |
@@ -77,7 +79,7 @@ jar like Paper's: on first start it downloads the vanilla server, patches it and
 Use it exactly like a Paper jar:
 
 ```bash
-java -Xms6G -Xmx6G -jar jankypaper-paperclip-26.3.local-SNAPSHOT.jar --nogui
+java -Xms6G -Xmx6G -jar jankypaper-paperclip-26.3.build.12-alpha.jar --nogui
 ```
 
 Accept the EULA in `eula.txt` on first start. All of Paper's, Spigot's and Bukkit's files
@@ -141,6 +143,9 @@ bots:
   affect-mob-spawning: true  # false = no natural mob spawning around bots (crops/random ticks keep running)
   activation-range-multiplier: 0.5  # entity activation range around bots, as a multiple of spigot.yml's
   mob-spawn-representative-every: 1000  # above this many bots, only 1 in (online / this) counts for mob caps
+  parallel-movement: false   # EXPERIMENTAL: bots' movement physics on worker threads (needs a plugin that uses it, e.g. FPP)
+logging:
+  mask-player-ips: true      # 85.226.123.45 is logged as 85.226.***.** (join line, login/kick messages, packet errors)
 ```
 
 ### `focus` keys
@@ -168,6 +173,13 @@ bots:
 | `affect-mob-spawning` | `true` | Whether bots make mobs spawn around them like real players. With thousands of bots spread out, natural spawning around all of them is one of the largest remaining costs (~10% of the tick at 10,000 roaming bots). `false` leaves bots out of natural spawning, despawn distance checks and spawners; chunks around bots still tick (crops grow, furnaces run), and real players spawn mobs normally. |
 | `activation-range-multiplier` | `0.5` | Multiplies the `spigot.yml` entity activation ranges around each bot. Mobs that are only near bots - not near any real player - keep full AI within half the usual range and run Spigot's cheap inactive tick beyond it. Real players keep their full ranges, so anything near you behaves normally. `1.0` = treat bots like players. |
 | `mob-spawn-representative-every` | `1000` | Paper's per-player mob caps cost mobs x players every tick (each mob adds itself to every nearby player's count; each spawn attempt checks every nearby player). Up to this many bots online every bot counts as a mob-spawning player, exactly like vanilla - an AFK bot at a farm behaves normally. Above it, only one bot in `online / this` counts (chosen by UUID, re-checked as the count changes), so a 10,000-bot crowd costs and spawns mobs like a ~1,000-bot crowd. `0` = every bot always counts. |
+| `parallel-movement` | `false` | **Experimental.** Lets a plugin hand the movement physics of all its bots to Janky Paper, which runs them together on worker threads after the plugin's tick - see [Parallel bot movement](#parallel-bot-movement-experimental). Does nothing without a plugin that uses it (FPP does). Not benchmarked yet; turn it on, watch the console for `Parallel bot movement:` lines, and turn it off again if bots misbehave. |
+
+### `logging` keys
+
+| Key | Default | Meaning |
+|---|---|---|
+| `mask-player-ips` | `true` | Masks player IP addresses everywhere Paper logs them - the join line (`Name[/85.226.***.**:54321] logged in ...`), login failures and disconnects, packet-handling errors - in the console and in `logs/latest.log`. The last two IPv4 octets (everything after the first two IPv6 groups) become one `*` per digit, so you can still tell players and networks apart in a support thread without publishing anyone's address. `false` logs full addresses like Paper does. Paper's own `logging.log-player-ip-addresses: false` (`paper-global.yml`) still hides them completely. Plugins that print addresses themselves are not affected. |
 
 ---
 
@@ -192,11 +204,16 @@ Permission: **`jankypaper.command.focus`** (ops by default). The command is regi
 
 ### How bots are detected
 
-A player counts as a bot when its network connection is **not a real socket**. Every real client
+A player counts as a bot when its network connection is **not one the server accepted**. Every real client
 connection (TCP or unix domain socket) is a Netty `DuplexChannel`; fake-player plugins attach a
-fake channel instead (FPP's `FakeChannel`, `EmbeddedChannel`, ...). Detection happens once, when the
-player is placed into the world, and is stored on the player (`ServerPlayer.jankyBot`). No plugin
-changes or API calls are needed, so it works for any fake-player plugin that uses a fake connection.
+fake channel instead (FPP's `FakeChannel`, `EmbeddedChannel`, ...). Some plugins swap a real player's channel
+for a wrapper of their own (ProtocolLib does), so a channel that isn't a socket still counts as real when it
+reports the server's listening channel as its parent, or when the connection is in the server's connection
+list - fake connections have neither. Detection happens once, when the player is placed into the world, and
+is stored on the player (`ServerPlayer.jankyBot`). No plugin changes or API calls are needed, so it works for
+any fake-player plugin that uses a fake connection. The console prints one line per kind of bot connection
+(`Lightweight bots: players on <channel class> connections are treated as bots`), so a misdetected real player
+is easy to spot.
 
 ### What a bot no longer costs
 
@@ -215,12 +232,16 @@ changes or API calls are needed, so it works for any fake-player plugin that use
 | **Unused nearby-player maps** | Moonrise keeps three "general" nearby-player maps the server never reads; each bot took a slot in every chunk within 33 chunks. | bots x chunks |
 | **Vanilla bot-on-bot pushing** | Each bot checked every entity in its hitbox (plus a climbable-block lookup per candidate). Configurable: `bots.vanilla-push`. | bots x bots |
 | **Item-pickup scan** | Each bot scanned every nearby entity (including every other bot) each tick. Bots now only look up entity classes that react to a touch: items, XP orbs, arrows/tridents, slimes/sulfur cubes, pufferfish. | bots x bots |
-| **Entity activation** | Activation ranges were computed once per bot. Now once per chunk that holds bots (box padded to cover the chunk). | bots x entities |
+| **Entity activation** | Spigot's activation range fetched every entity in a big box around each player - per bot, that box held the whole crowd. The chunks holding bots are now collected first and every chunk within reach of one is visited **once**: an entity is active when its chunk is within its activation range (in whole chunks, rounded up, scaled by `bots.activation-range-multiplier`) of a chunk with a bot. Real players and focused bots keep Spigot's exact boxes. | bots x entities |
 | **Container sync, stat counter, debug-subscription check, map-item sync** | Per-tick work that only feeds a client. Stat-tracking scoreboards still update for bots. | bots |
-| **Chunk-loader ticking** | Each bot's chunk-loading queues are processed every other tick (half of the bots each tick). | bots |
-| **Per-player mob caps** | Above `mob-spawn-representative-every` bots, only a share of the bots count for Paper's per-player mob caps (every mob tick and spawn attempt loops over the players in range). | mobs x bots |
-| **Per-tick per-player busywork** | Bots skip the network flush, the per-tick `PlayerNaturallySpawnCreaturesEvent` (its spawn radius is kept), and update their attribute modifiers once a second. Endermen never treat a bot as staring at them. | bots |
+| **Chunk tickets** | Moonrise gives every player its own ticket on every chunk in its load radius - 10,000 bots in one area put ~10,000 tickets on each chunk under them, and the ticket set of a chunk is a sorted array (every bot crossing a chunk border inserted into / removed from it, and the expiry pass walked all of them every tick once a bot left a delayed unload ticket there). All bots in a world now share **one reference-counted ticket per chunk and level**; chunks stay loaded and ticking exactly as before. | bots x chunks |
+| **Chunk-loader ticking** | Each bot's chunk-loading queues are processed every other tick (half of the bots each tick), and not at all while the bot has nothing queued (the common case once its chunks are loaded). Chunks a bot "sends" are marked sent at once - no rate limit, no waiting for neighbours, no post-processing for a client that doesn't exist. | bots |
+| **Per-player mob caps** | Above `mob-spawn-representative-every` bots, only a share of the bots count for Paper's per-player mob caps (every mob tick and spawn attempt loops over the players in range). The per-tick mob-count reset skips bots that aren't in the mob-cap map, and a spawn attempt stops walking the players in range as soon as one of them is at its cap. | mobs x bots |
+| **Spawning chunks** | Deciding which chunks can spawn mobs walked every player in range of each chunk - every bot, for every chunk at the edge of a crowd where none qualified. It now asks the [player grid](#player-grid-mob-nearest-player-searches). | chunks x bots |
+| **Per-tick per-player busywork** | Bots skip the network flush and update their attribute modifiers once a second. The per-tick `PlayerNaturallySpawnCreaturesEvent` is not fired for bots (their spawn radius is kept and re-checked once a second). Endermen never treat a bot as staring at them. | bots |
 | **Mob despawn checks** | With more than 64 players in a world, each mob checks for despawning every 4th tick (staggered) instead of every tick; the random despawn chance is scaled so despawn rates stay the same. | mobs x players |
+| **Crowded entity sections** | Moonrise's per-section entity lists checked for duplicates and removed entries by scanning the whole list - in a crowd, thousands of bots per section, several times per bot crossing a section border. Lists above 32 entries now keep a hash index (O(1) add/remove). Helps any crowded area, not just bots. | bots x bots |
+| **Tracker updates nobody receives** | Every entity in a ticking chunk built a movement packet every tick even with no player watching it. With no viewers it now only keeps the state a later viewer needs (and Paper's forced resync sends the full position when one arrives). Applies to all entities. | entities |
 
 ### What bots keep
 
@@ -247,21 +268,25 @@ the whole tick at 10,000 bots before this change).
 
 Janky Paper keeps a per-world spatial index of players (`ServerLevel.jankyPlayerGrid`):
 
-- Players are bucketed by chunk **once per tick**, the first time a search needs it.
-- A search walks rings of chunks outwards from the mob and stops as soon as no unvisited ring can hold
-  anything closer than the best match.
-- Inside a crowded chunk, players are sorted by X; a search binary-searches its own X and sweeps
-  outwards, so in a dense crowd it only checks a thin slice of it. The expensive targeting test (line of
-  sight, visibility) only runs on players that would beat the current best.
+- Players are bucketed by chunk **once per tick**, the first time a search needs it (a counting sort into
+  flat arrays - no per-cell lists or sorting).
+- A chunk holding more than 24 players is split into 4x4-block cells, and those again into 1x1-block
+  cells, so a search inside a dense crowd only looks at the few players actually around it.
+- A search walks rings of chunks outwards from the mob, visits cells nearest-first, skips any cell that is
+  already further than the best match, and stops as soon as no unvisited ring can hold anything closer.
+  The expensive targeting test (line of sight, visibility) only runs on players that would beat the
+  current best.
 - Target searches stop at the mob's target range (scaled by the largest `mob_visibility` equipment
   boost anyone is wearing, since datapacks can raise visibility above 1).
 - If the rings to visit would cost more than a plain scan (players spread across the world, or nothing in
   range), it falls back to the plain scan.
+- Deciding which chunks can spawn mobs uses it too (horizontal distance, each player's own spawn radius).
 
-It returns the same player as the vanilla scan. The only difference: positions are snapshotted once
-per tick with 4 blocks of slack, so a player **teleported** more than 4 blocks within the same tick can
-be missed until the next tick. The grid is only used when a world has **more than 64 players**; below
-that the vanilla scan is cheaper and runs unchanged.
+It returns the same player as the vanilla scan. Positions are snapshotted when the grid is built and
+every bound keeps 1 block of slack; a player that moves further than that from its snapshot during the
+tick (a teleport, a long fall, a launch) goes on an overflow list that every search also checks, and the
+distance that decides the winner is always the live one. The grid is only used when a world has **more than
+64 players**; below that the vanilla scan is cheaper and runs unchanged.
 
 ---
 
@@ -310,6 +335,44 @@ Rules for code running on those threads:
 - **Apply results on the main thread**, and re-check that the bot still exists and still wants the
   result.
 - `API_VERSION` is bumped on incompatible changes - check it.
+
+---
+
+## Parallel bot movement (experimental)
+
+**Status: written, compiles, not yet run.** Off by default (`bots.parallel-movement: false`).
+
+Every bot's movement physics - friction, gravity, the collision sweep against blocks, fluids, climbing, step sounds -
+runs inside its `doTick()`, which the fake-player plugin calls for one bot after another on the main thread. In a
+10,000-bot fight that is the single largest piece of the tick (about a quarter of it). The movement itself only reads
+the world and only writes the bot's own fields; the only things it touches that other code also touches are the entity
+lookup's section bookkeeping, the locator-bar and player-grid updates when the position changes, and the sounds and
+game events a step emits.
+
+With this on, a plugin that uses the hooks (FPP does) runs its tick in two halves:
+
+1. For every bot: its checks, web escape and `doTick()` - but the bot's `travel()` only **records** its movement input
+   and returns. The rest of the bot's tick (fire, air, effects, food, item pickup, inventory) runs as always, at the
+   position the tick started with - exactly like a real player's server-side entity, which is moved by its client's
+   packets, not by its own `travel()`.
+2. The plugin calls `flush()`: all recorded bots travel **in parallel** on movement worker threads (`cores - 1` of them,
+   plus the server thread taking a slice). Nothing else runs on the server thread meanwhile, so the world is read-only
+   for the duration; block reads from the workers never load chunks (an unloaded chunk reads as a barrier). The four
+   shared-structure effects above are deferred, and then applied on the main thread, bot by bot, followed by the
+   block effects of the move (step-on / inside-block, e.g. magma or cactus damage) and the queued sounds and game events.
+3. The plugin runs its own fall-damage check and the bots' AI with the bots moved.
+
+Bots that are riding, gliding (an elytra wall hit damages the bot - an event), sleeping, creative-flying, in spectator
+mode or dead are never captured and move inline as before. A plugin that arms bots and never flushes them is caught by
+a per-tick safety net. On a server without a plugin that uses the hooks, the setting changes nothing.
+
+Known trade-offs: a bot's body rotation follows its head instead of its walking direction (the body-turn code runs
+before the move now), item pickup and pose updates use the position from the start of the tick (one tick late), and
+the first tick after a spawn is always inline.
+
+Plugin hooks (`dev.jankypaper.server.bot.BotMovement`, reflection, `API_VERSION` = 1): `boolean isAvailable()`,
+`void defer(org.bukkit.entity.Player)` right before the bot's `doTick()`, `boolean isDeferred(Player)` after it, and
+`void flush()` after the loop.
 
 ---
 
@@ -363,6 +426,7 @@ values.
 | Chunk/region file I/O | Moonrise I/O pool | **cores / 4, between 1 and 4** |
 | Networking | Netty threads | unchanged (`spigot.yml` `settings.netty-threads`) |
 | Bot route planning (FPP) | bot worker threads | cores / 2 (FPP's choice), below normal priority |
+| Bot movement physics (FPP, with `bots.parallel-movement`) | movement workers + the server thread | cores - 1 workers, normal priority, only while the server thread waits for them |
 
 `chunk-system.worker-threads` and `chunk-system.io-threads` in `config/paper-global.yml` still override
 the chunk pool sizes when set above 0.
@@ -402,6 +466,13 @@ Janky Paper works with any FPP build, but these FPP features use it:
 | Crowd separation | Bots are bucketed into a spatial hash (cells one collision radius wide) every 5 ticks; each bot only checks bots in the 3x3 cells around it, at most 12 neighbours, and its pushes are summed and applied once. The old Paper pass compared bots in list order (so crowds barely separated at scale); the Folia pass called `getNearbyPlayers` per bot (bots x bots). |
 | Combat targeting | Target pick, rebalance, nearest-threat and retreat-direction searches use a per-tick spatial index of players and consider the 32 nearest candidates in range, instead of every player in aggro range for every fighting bot (a 10,000-bot free-for-all froze the server for minutes). Folia keeps its region-local lookups. |
 | Player movement push | A real player's move event only checks the bots within reach of it (it used to copy and walk the whole bot list on every move event). |
+| Sitting-out bots | A bot sitting out a tick under the detail levels isn't looked at again until its next turn (re-checked at least every 4 ticks), so an unwatched crowd costs one field read per bot per tick instead of the full set of checks. |
+| Real-player list | The list of real players (for head glances, detail levels and crowd separation) is kept across ticks and only rebuilt when someone joins or leaves, instead of walking every online player each tick. |
+| Route re-checks | When a walking bot's route ahead turns out blocked, the re-plan runs on a worker thread like stuck recovery does (it ran on the main thread before). |
+| Knockback / separation pushes | Pushes set the bot's motion directly, without the "sync to the client" flag a bot has no use for (it made the entity tracker fire a `PlayerVelocityEvent` and build a motion packet per push). FPP builds against older server internals, and the field it used to set was renamed in 26.3 (`hurtMarked` -> `syncVelocity`), which threw and caught an error on every push. |
+| Crowd separation pass | Each bot's game mode, collidable flag and scoreboard team are read once per pass instead of once per pair (up to 12 pairs per bot), and the edge check reads block types without creating `Block` objects. |
+| Combat tick | The combat AI asked "do I carry a shield / totem / golden apple / arrows / the cart kit / a bow" about a dozen times per fighting bot per tick, each a 36-slot inventory scan; they now read one half-second snapshot per bot. The target entity behind the target UUID is cached (it was looked up in every world's entity map each tick), the shield cooldown is cached, gear upkeep (best weapon / armor) runs every half second instead of every tick, a ranged bot's line-of-sight re-check runs every few ticks instead of every tick, and the chase destination (target prediction) is only computed on the ticks the chase actually plans a route. |
+| Parallel movement | With `bots.parallel-movement: true`, FPP ticks in two halves and lets Janky Paper move all bots at once between them - see [Parallel bot movement](#parallel-bot-movement-experimental). The console prints `Bot movement runs on the server's parallel movement pass (Janky Paper)` once. |
 
 **Recommended:**
 - Keep `bots.view-distance` small (2-4) unless bots must keep farms loaded: every chunk in view is kept
@@ -438,6 +509,23 @@ bot detail levels; with you online, bots within 48 blocks of you run at full det
 
 Run-to-run noise is about +-15%.
 
+**Round 4 (not measured yet):** the shared bot chunk tickets, idle chunk-loader skip, single-pass bot activation,
+finer player grid, grid-based spawning-chunk check, crowded-section index, no-viewer tracker path and cached world
+border (server), plus FPP's sitting-out skip, cached real-player list, worker-thread route re-checks and the knockback
+fix. They target costs the last round's profiles attributed roughly 35-45% of the 10,000-bot idle tick and 25-35% of
+the roam tick to; the table above will be updated once they are benchmarked.
+
+**Round 5 (not measured yet):** FPP's combat tick trimmed (inventory snapshot, cached target entity, cheaper shield /
+line-of-sight / gear-upkeep checks, lazy chase prediction - the combat AI was ~26% of the 10,000-bot fight tick) and the
+crowd separation pass cheapened, plus the opt-in [parallel bot movement](#parallel-bot-movement-experimental) (bot
+physics, ~17-26% of the roam / fight tick, across all cores).
+
+For scale: at 10,000 bots a 20 TPS tick leaves **5 µs per bot** for everything - physics, AI, mobs, chunks. A fighting
+bot's physics alone is ~10-20 µs on one core today, and a 4-thread host can parallelise at most ~3.5x. Full-action 10,000-bot
+fights at 20 TPS therefore need both the parallel movement and a much cheaper per-bot tick, and realistically more than
+4 CPU threads; the settings here (detail levels, focus mode, `bots.*`) are what trades fidelity far from the camera for
+that budget.
+
 What is left at 10,000 idle bots is mostly the mobs around them (natural spawning, mob AI and despawn checks -
 see `bots.affect-mob-spawning` and `bots.activation-range-multiplier`), per-bot chunk loading, and the server's own
 per-player bookkeeping. 20 TPS holds up to roughly 2,000-2,500 bots at full detail on this machine. Results on your host depend mostly on its single-core speed (the main thread), how
@@ -450,6 +538,11 @@ spread out the bots are, and what else runs.
 | Symptom | Check |
 |---|---|
 | Bots behave like real players / no improvement | The startup log should show `Lightweight bots .. on`. `/focus` shows how many bots are online - if it says 0 while bots are online, the plugin's connection is a real socket (not a fake one) and can't be detected. |
+| A real player is stuck on "Loading terrain" / sees nothing | That player is being treated as a bot (bots get no chunk or entity packets). Look for `Lightweight bots: players on <class> connections are treated as bots (first: <name>)` in the console naming a real player, and report the class. Builds before this fix did this to every real player when ProtocolLib was installed. `bots.lightweight: false` is the emergency switch. |
+| Plugins log `Invalid Bukkit version format: 26.3.local-SNAPSHOT`, `Incompatible version 26.3.local-SNAPSHOT` or `Found Minecraft: 26.3.local` | The jar was built by a Janky Paper that reported `<mc>.local-SNAPSHOT`. Rebuild it: builds now report `26.3.build.<n>-alpha` like Paper's own, which plugin version parsers understand. |
+| Nobody can join; the console repeats `Failed to initialize a channel. Closing` with `zip file closed` and a plugin's name | A plugin that failed to enable (usually built for another Minecraft version) left a channel initialization listener behind, and every new connection died in it. Janky Paper now removes those listeners when the plugin is disabled and keeps the connection alive if a listener throws - but update or remove the plugin named in the trace. |
+| `Exception stopping the server ... "connection.channel" is null` on shutdown | Those dead connections had no channel to close, which aborted the shutdown **before the worlds were saved**. Fixed; it was a symptom of the row above. |
+| A plugin says Minecraft/Paper 26.3 is not supported, or throws on enable with a `1.21.x`/`26.1`/`26.2` version in its name | Not a Janky Paper problem - it does not support 26.3 on Paper either (seen: AxiomPaper built for 1.21.11, InvSee++ 0.31.x, FastAsyncWorldEdit 2.15.x, CoreProtect 24, ViaVersion 5.12.0). Update it. BungeeCord/Velocity plugins (`raknetify-bungee-*.jar`) do not belong in `plugins/`. |
 | Bots stall before walking, or walk oddly, after a roam/follow | Set FPP's `pathfinding.async-search: false` and reload FPP. If that fixes it, the worker-thread searches are the cause - report it. |
 | Bots don't keep farms / chunks around them loaded | Raise `bots.view-distance` and `bots.simulation-distance` (or FPP's `performance.bot-view-distance`). |
 | Bots overlap in a crowd | Expected with `bots.vanilla-push: false` unless the plugin separates them (FPP does, when its collision setting is on). |
@@ -484,6 +577,9 @@ the palette, update both `JankyLog` and `JankyPrefixConverter`. `logs/latest.log
 standard file format so log parsers and hosting panels keep working, and the startup line still
 contains `Done (…)! For help, type "help"` for the same reason.
 
+Player IP addresses are masked (`85.226.***.**`) in every line Paper logs them in - see
+`logging.mask-player-ips` in the [configuration reference](#configuration-reference-configjanky-paperyml).
+
 ---
 
 ## Developing Janky Paper
@@ -509,7 +605,12 @@ contains `Done (…)! For help, type "help"` for the same reason.
 
 Shortcuts: `patch.sh` / `patch.bat` apply patches, `rb.sh` / `rb.bat` rebuild them.
 
-The version is `<mcVersion>.local-SNAPSHOT` unless `BUILD_NUMBER` is set in the environment.
+The version is `<mcVersion>.build.<n>-<channel>` (`channel` from `gradle.properties`; `n` is `BUILD_NUMBER`
+when set, otherwise the git commit count) - the same shape as Paper's own builds (`26.3.build.244-stable`),
+because plugins parse `Bukkit.getBukkitVersion()` and break on anything else (ItemEdit threw
+`Invalid Bukkit version format`, voicechat and NBT-API fell back to degraded modes on `26.3.local-SNAPSHOT`).
+`<mcVersion>.local-SNAPSHOT` is only used when there is no git history. The manifest build time falls back to
+the commit time when `BUILD_STARTED_AT` is unset, so `/version` no longer shows 1970-01-01.
 
 ### Dev server
 
@@ -536,7 +637,7 @@ Fork-only server code (no patches needed):
 
 | Package | Contents |
 |---|---|
-| `dev.jankypaper.server.bot` | `BotPlayers` (detection, settings, lightweight-bot hooks), `PlayerGrid` (nearest-player index), `BotWorkerThreads` (worker threads + loaded-only reads) |
+| `dev.jankypaper.server.bot` | `BotPlayers` (detection, settings, lightweight-bot hooks), `PlayerGrid` (nearest-player index), `BotChunkTickets` (shared chunk tickets), `BotActivation` (entity activation around bots), `BotMovement` (parallel movement phases + plugin hooks), `BotWorkerThreads` (worker threads + loaded-only reads) |
 | `dev.jankypaper.server.focus` | `FocusManager` (state, tick, config file), `FocusSettings`, `FocusArea`, `FocusCommand` (`/focus`) |
 | `dev.jankypaper.server.log` | `JankyLog`, `ServerBanners` |
 | `src/log4jPlugins/java/dev/jankypaper/server/log` | `JankyPrefixConverter` (`%jankyPrefix`) |
@@ -547,9 +648,13 @@ Where the patches hook in (each change is marked `// Janky Paper - <why>` in the
 |---|---|
 | `PlayerList` | bot detection on join, skipped broadcasts, latency refresh, join list |
 | `ServerPlayer` | `jankyBot` flag, no vanilla push, no container sync / stats / debug check |
-| `ChunkMap`, `NearbyPlayers`, `RegionizedPlayerChunkLoader` | bots out of entity tracking and unused maps, no chunk packets; focus chunk-rate scaling and priority |
-| `ActivationRange` | focus activation scaling, one activation pass per chunk of bots |
-| `EntityGetter`, `ServerEntityGetter`, `TargetingConditions`, `ServerLevel` | player grid |
+| `ChunkMap`, `NearbyPlayers`, `RegionizedPlayerChunkLoader` | bots out of entity tracking and unused maps, no chunk packets, shared bot chunk tickets (`BotChunkTickets`), idle loader skip; focus chunk-rate scaling and priority; grid-based spawning-chunk check |
+| `ActivationRange` | focus activation scaling, single-pass bot activation (`BotActivation`) |
+| `EntityGetter`, `ServerEntityGetter`, `TargetingConditions`, `ServerLevel`, `Entity` | player grid (`Entity#setPosRaw` feeds its overflow list); `ServerLevel` also caches the world border |
+| `ServerChunkCache`, `NaturalSpawner` | per-player mob cap bookkeeping for bots |
+| `ServerEntity` | no-viewer tracker path |
+| `Player`, `LivingEntity`, `Entity`, `ServerLevel`, `MinecraftServer` | parallel bot movement: `travel()` capture, deferred block effects, off-main `move()`, deferred position callbacks, deferred sounds / game events, per-tick safety-net flush |
+| `ChunkEntitySlices` (Moonrise) | hash index for crowded section lists |
 | `Player` | class-indexed pickup scan for bots |
 | `PlayerAdvancements` | released progress for bots |
 | `ServerWaypointManager` | no locator bar for bots |

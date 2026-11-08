@@ -1,0 +1,10 @@
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3778,6 +_,7 @@
+         }
+ 
+         if (!this.level().isClientSide() || this.isLocalInstanceAuthoritative()) {
++            if (!(this instanceof net.minecraft.server.level.ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.CAPTURED)) // Janky Paper - parallel bot movement - the bot has not moved yet; applied on the main thread after the move
+             this.applyEffectsFromBlocks();
+         }
+ 

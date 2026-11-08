@@ -77,11 +77,32 @@ public final class BotPlayers {
     private BotPlayers() {
     }
 
+    /**
+     * Whether a player's connection is a fake one (a bot). A real connection is a socket the server accepted: its
+     * channel is a {@link DuplexChannel} (TCP, unix domain socket). Plugins may swap a real connection's channel for a
+     * wrapper of their own - ProtocolLib does, to intercept packet writes - and that wrapper is not a DuplexChannel, so
+     * a wrapped channel also counts as real when it still reports the server's listening channel as its parent, or when
+     * the connection is in the server's own connection list. Fake-player plugins build connections the server never
+     * accepted (FPP's {@code FakeChannel}, Netty's {@code EmbeddedChannel}): no parent, not in that list.
+     */
     public static boolean isFakeConnection(final Connection connection) {
         final Channel channel = connection.channel;
-        // every real connection (TCP, unix domain socket) is a DuplexChannel
-        return channel != null && !(channel instanceof DuplexChannel);
+        if (channel == null || channel instanceof DuplexChannel) {
+            return false;
+        }
+        try {
+            if (channel.parent() != null) {
+                return false; // accepted by the server's listening channel, behind a wrapper
+            }
+        } catch (final RuntimeException ignored) {
+            // a wrapper that doesn't implement parent(): fall through to the connection list
+        }
+        final net.minecraft.server.network.ServerConnectionListener listener = MinecraftServer.getServer().getConnection();
+        return listener == null || !listener.getConnections().contains(connection);
     }
+
+    // channel classes already reported as bot connections (one console line per kind, not per bot)
+    private static final java.util.Set<Class<?>> reportedBotChannels = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
      * Optional hook for fake-player plugins, called by reflection right before they construct a bot's
@@ -104,6 +125,11 @@ public final class BotPlayers {
         player.jankyBot = enabled && isFakeConnection(connection);
         if (!player.jankyBot) {
             return;
+        }
+        if (reportedBotChannels.add(connection.channel.getClass())) {
+            // once per kind of connection, so a player wrongly treated as a bot (no terrain, sees nothing) is easy to spot
+            dev.jankypaper.server.log.JankyLog.info("Lightweight bots: players on " + connection.channel.getClass().getName()
+                + " connections are treated as bots (first: " + player.getScoreboardName() + ")");
         }
         online++;
         if (viewDistance > 0) {
@@ -209,6 +235,11 @@ public final class BotPlayers {
         return vanillaPush;
     }
 
+    /** Whether bots count for natural mob spawning (see {@code bots.affect-mob-spawning}). */
+    public static boolean affectsMobSpawning() {
+        return affectMobSpawning;
+    }
+
     public static boolean enabled() {
         return enabled;
     }
@@ -218,7 +249,8 @@ public final class BotPlayers {
             return "off";
         }
         return "on (view " + (viewDistance > 0 ? viewDistance : "world")
-            + ", sim " + (simulationDistance > 0 ? simulationDistance : "world") + ")";
+            + ", sim " + (simulationDistance > 0 ? simulationDistance : "world")
+            + (BotMovement.enabled() ? ", parallel movement" : "") + ")";
     }
 
     public static void read(final ConfigurationSection section) {
@@ -229,6 +261,7 @@ public final class BotPlayers {
         affectMobSpawning = section.getBoolean("affect-mob-spawning", true);
         activationRangeMultiplier = Math.max(0.0, section.getDouble("activation-range-multiplier", 0.5));
         spawnRepresentativeEvery = Math.max(0, section.getInt("mob-spawn-representative-every", 1000));
+        BotMovement.setEnabled(section.getBoolean("parallel-movement", false));
     }
 
     public static void write(final ConfigurationSection section) {
@@ -239,6 +272,7 @@ public final class BotPlayers {
         section.set("affect-mob-spawning", affectMobSpawning);
         section.set("activation-range-multiplier", activationRangeMultiplier);
         section.set("mob-spawn-representative-every", spawnRepresentativeEvery);
+        section.set("parallel-movement", BotMovement.enabled());
     }
 
     private static int distance(final int value) {

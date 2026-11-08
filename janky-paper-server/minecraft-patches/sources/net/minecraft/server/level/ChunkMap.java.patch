@@ -1,5 +1,13 @@
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
+@@ -719,6 +_,7 @@
+ 
+         final ServerPlayer[] raw = players.getRawDataUnchecked();
+         final int len = players.size();
++        if (len > dev.jankypaper.server.bot.PlayerGrid.MIN_PLAYERS && dev.jankypaper.server.bot.PlayerGrid.useFor(this.level)) return dev.jankypaper.server.bot.PlayerGrid.isChunkNearSpawningPlayer(this.level, chunkPos.x(), chunkPos.z()); // Janky Paper - player grid - a crowd's edge chunks walked every bot
+ 
+         Objects.checkFromIndexSize(0, len, raw.length);
+         for (int i = 0; i < len; ++i) {
 @@ -1010,11 +_,11 @@
                  // note: the tick loop is OK when adding entities
                  this.trackerEntities.add(entity);

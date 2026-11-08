@@ -16,7 +16,7 @@
              tracker.remove();
          }
      }
-@@ -118,12 +_,24 @@
+@@ -118,12 +_,27 @@
  
          final ChunkPos chunk = player.chunkPosition();
  
@@ -34,11 +34,14 @@
 +            final boolean wanted = !dev.jankypaper.server.bot.BotPlayers.skipsNearbyMap(player, NearbyMapType.TICK_VIEW_DISTANCE);
 +            final TrackedPlayer tickView = players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()];
 +            if (wanted && tickView == null) {
++                java.util.Arrays.fill(player.mobCounts, 0); // counts are not kept up to date while out of the map
++                java.util.Arrays.fill(player.mobBackoffCounts, 0);
 +                (players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()] = new TrackedPlayer(player, NearbyMapType.TICK_VIEW_DISTANCE)).add(chunk.x(), chunk.z(), 0);
 +            } else if (!wanted && tickView != null) {
 +                tickView.remove();
 +                players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()] = null;
 +            }
++            player.jankyMobCapTracked = wanted;
 +        }
 +        // Janky Paper end - lightweight bots
 +        if (players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()] != null) players[NearbyMapType.TICK_VIEW_DISTANCE.ordinal()].update(chunk.x(), chunk.z(), PlatformHooks.get().getTickViewDistance(player)); // Janky Paper - lightweight bots

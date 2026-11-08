@@ -1,0 +1,41 @@
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -154,7 +_,8 @@
+             this.entity.syncPosition = false;
+         }
+ 
+-        if (this.forceStateResync || this.entity.needsSync || this.updateInterval.test(this.tickCount) || this.entity.getEntityData().isDirty()) { // Paper - fix desync when a player is added to the tracker
++        if (this.forceStateResync || this.entity.needsSync || this.updateInterval.test(this.tickCount) || this.entity.getEntityData().isDirty()) jankyUnwatched: { // Paper - fix desync when a player is added to the tracker // Janky Paper - label
++            if (this.trackedPlayers.isEmpty() && !this.forceStateResync && !this.entity.isPassenger() && !(this.entity instanceof AbstractMinecart)) { this.jankySyncUnwatched(currentPosition); break jankyUnwatched; } // Janky Paper - nobody tracks it: keep the state, skip building packets for no one
+             byte yRotn = Mth.packDegrees(this.entity.getYRot());
+             byte xRotn = Mth.packDegrees(this.entity.getXRot());
+             boolean shouldSendRotation = Math.abs(yRotn - this.lastSentYRot) >= 1 || Math.abs(xRotn - this.lastSentXRot) >= 1;
+@@ -264,6 +_,28 @@
+             this.synchronizer.sendToTrackingPlayersAndSelf(new ClientboundSetEntityMotionPacket(this.entity));
+         }
+     }
++
++    // Janky Paper start - entity with no viewers
++    /**
++     * The movement part of {@link #sendChanges} for an entity nobody tracks: every bot and mob far from real players
++     * built a movement packet (and position path) every tick for an empty viewer set. Keeps the state a later viewer
++     * relies on - dirty entity data (also sent to a player itself), last-sent rotation / ground state, a fresh position
++     * base - and when a player starts tracking it, Paper's forced resync sends the full position on the next update.
++     */
++    private void jankySyncUnwatched(final Vec3 currentPosition) {
++        this.interpolationTracker.clear();
++        this.positionCodec.setBase(currentPosition);
++        this.lastSentYRot = Mth.packDegrees(this.entity.getYRot());
++        this.lastSentXRot = Mth.packDegrees(this.entity.getXRot());
++        this.lastSentYHeadRot = Mth.packDegrees(this.entity.getYHeadRot());
++        this.lastSentMovement = this.entity.getDeltaMovement();
++        this.wasOnGround = this.entity.onGround();
++        this.wasRiding = false;
++        this.teleportDelay = 0;
++        this.sendDirtyEntityData();
++        this.entity.needsSync = false;
++    }
++    // Janky Paper end - entity with no viewers
+ 
+     private @Nullable MovementPacket<ClientGamePacketListener> createMovePacket(
+         final PositionPath position, final byte yRotn, final byte xRotn, final boolean shouldSendPosition, final boolean shouldSendRotation

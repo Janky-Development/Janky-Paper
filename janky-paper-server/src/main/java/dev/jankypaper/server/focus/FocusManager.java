@@ -67,7 +67,14 @@ public final class FocusManager {
           from every bot and every real player run Spigot's cheap inactive tick. Real players are unaffected.
           mob-spawn-representative-every: up to this many bots online every bot counts for per-player mob caps;
           above it only one bot in (online / this) does, so huge crowds spawn mobs like ~this many bots. 0 = all.
-          Bots are left out of focus mode unless added with /focus add.""";
+          parallel-movement: EXPERIMENTAL. With a plugin that uses it (FPP), the movement physics of all bots run
+          together on worker threads after the plugin's tick instead of one by one on the main thread. Off by default.
+          Bots are left out of focus mode unless added with /focus add.
+
+        logging:
+          mask-player-ips: true logs 85.226.123.45 as 85.226.***.** wherever Paper prints a player's address
+          (join line, login failures and disconnects, packet errors), in the console and in logs/latest.log.
+          Paper's own logging.log-player-ip-addresses: false (paper-global.yml) still hides addresses completely.""";
 
     private static FocusSettings settings = FocusSettings.DEFAULTS;
     private static Path file;
@@ -259,6 +266,7 @@ public final class FocusManager {
         final YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
         settings = FocusSettings.read(yaml);
         dev.jankypaper.server.bot.BotPlayers.read(section(yaml, "bots"));
+        dev.jankypaper.server.log.IpMask.read(section(yaml, "logging"));
         focusedPlayers.clear();
         for (final String raw : yaml.getStringList("focus.targets.players")) {
             try {
@@ -292,6 +300,7 @@ public final class FocusManager {
         yaml.options().setHeader(List.of(HEADER.split("\n")));
         settings.write(yaml);
         dev.jankypaper.server.bot.BotPlayers.write(section(yaml, "bots"));
+        dev.jankypaper.server.log.IpMask.write(section(yaml, "logging"));
         yaml.set("focus.targets.players", focusedPlayers.stream().map(UUID::toString).toList());
         yaml.set("focus.targets.areas", areas.stream().map(FocusArea::serialize).toList());
         try {

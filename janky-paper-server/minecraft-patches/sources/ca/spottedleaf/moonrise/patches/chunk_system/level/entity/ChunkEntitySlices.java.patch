@@ -1,0 +1,65 @@
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java
+@@ -405,6 +_,21 @@
+ 
+         private E[] storage;
+         private int size;
++        // Janky Paper start - crowded sections: O(1) lookups
++        // A crowd of bots puts thousands of entities in one section list; every add (duplicate check) and remove was a
++        // linear scan plus a shift, several times per section crossing. Above this size the list keeps an index and
++        // removes by swapping in the last entry (iteration order within a crowded section is then not insertion order).
++        private static final int JANKY_INDEX_THRESHOLD = 32;
++        private it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap<E> jankyIndex;
++
++        private void jankyBuildIndex() {
++            this.jankyIndex = new it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap<>(this.size * 2);
++            this.jankyIndex.defaultReturnValue(-1);
++            for (int i = 0; i < this.size; ++i) {
++                this.jankyIndex.put(this.storage[i], i);
++            }
++        }
++        // Janky Paper end - crowded sections: O(1) lookups
+ 
+         public BasicEntityList() {
+             this(0);
+@@ -438,9 +_,17 @@
+             } else {
+                 this.storage[idx] = entity;
+             }
++            // Janky Paper start - crowded sections: O(1) lookups
++            if (this.jankyIndex != null) {
++                this.jankyIndex.put(entity, idx);
++            } else if (this.size > JANKY_INDEX_THRESHOLD) {
++                this.jankyBuildIndex();
++            }
++            // Janky Paper end - crowded sections: O(1) lookups
+         }
+ 
+         public int indexOf(final E entity) {
++            if (this.jankyIndex != null) return this.jankyIndex.getInt(entity); // Janky Paper - crowded sections: O(1) lookups
+             final E[] storage = this.storage;
+ 
+             for (int i = 0, len = Math.min(this.storage.length, this.size); i < len; ++i) {
+@@ -458,6 +_,22 @@
+                 return false;
+             }
+ 
++            // Janky Paper start - crowded sections: O(1) lookups - swap the last entry into the hole
++            if (this.jankyIndex != null) {
++                final int last = --this.size;
++                final E moved = this.storage[last];
++                this.storage[idx] = moved;
++                this.storage[last] = null;
++                this.jankyIndex.removeInt(entity);
++                if (idx != last) {
++                    this.jankyIndex.put(moved, idx);
++                }
++                if (this.size < JANKY_INDEX_THRESHOLD / 2) {
++                    this.jankyIndex = null; // small again: back to plain scans
++                }
++                return true;
++            }
++            // Janky Paper end - crowded sections: O(1) lookups
+             final int size = --this.size;
+             final E[] storage = this.storage;
+             if (idx != size) {

@@ -25,7 +25,9 @@ repo's policy, and its "do not submit" rules apply to upstream Paper, not to thi
 - Tests: `:janky-paper-server:test` only picks up classes named `*TestSuite` and excludes the
   `Slow` tag; `:janky-paper-api:test` and `:janky-paper-checkstyle:test` are normal JUnit 5.
   Checkstyle (Paper's config) runs on the API via `:janky-paper-api:checkstyleMain`.
-- Version is `<mcVersion>.local-SNAPSHOT` unless `BUILD_NUMBER` is set in the environment.
+- Version is `<mcVersion>.build.<n>-<channel>` like Paper's own (`n` = `BUILD_NUMBER`, else the git commit
+  count, resolved in `settings.gradle.kts`); `<mcVersion>.local-SNAPSHOT` only without git. Keep that shape:
+  plugins parse `Bukkit.getBukkitVersion()` and break on anything else.
 - Configuration cache and build cache are on; `./gradlew tasks --all` is slow (minutes).
 
 ## Where code lives and how it gets tracked
@@ -84,6 +86,8 @@ Other patch facts:
   The per-line `%jankyPrefix` converter is `JankyPrefixConverter` in `src/log4jPlugins/java`
   and is wired by the `log4j2.xml` file patch. The colour palette is duplicated in `JankyLog`
   and `JankyPrefixConverter`; change both.
+- Player IPs in Paper's log lines are masked by `IpMask.address(...)` (same package), called from the
+  `Connection.getLoggableAddress` patch; config key `logging.mask-player-ips` (read in `FocusManager`).
 - Keep `logs/latest.log` in Paper's standard format and keep the literal
   `Done (...)! For help, type "help"` startup line; hosting panels and log parsers depend on it.
 

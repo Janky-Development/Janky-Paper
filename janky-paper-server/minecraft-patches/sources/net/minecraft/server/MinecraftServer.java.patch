@@ -101,6 +101,14 @@
          if (nano - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
              this.lastServerStatus = nano;
              this.status = this.buildServerStatus();
+@@ -1749,6 +_,7 @@
+         ProfilerFiller profiler = Profiler.get();
+         this.getPlayerList().getPlayers().forEach(playerx -> playerx.connection.suspendFlushing());
+         this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
++        dev.jankypaper.server.bot.BotMovement.flushIfPending(); // Janky Paper - parallel bot movement - a plugin that armed bots in its tick task but never flushed them
+         // Paper start - optimise Folia entity scheduler
+         ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
+         for (io.papermc.paper.threadedregions.EntityScheduler scheduler : this.entitySchedulerTickList.getAllSchedulers()) {
 @@ -1838,7 +_,7 @@
  
          for (ServerPlayer player : this.playerList.getPlayers()) {

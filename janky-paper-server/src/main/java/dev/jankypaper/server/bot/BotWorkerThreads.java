@@ -29,8 +29,8 @@ public final class BotWorkerThreads {
     private BotWorkerThreads() {
     }
 
-    /** Marker type: a read is "off-thread bot work" exactly when it runs on one of these. */
-    public static final class WorkerThread extends Thread {
+    /** Marker type: a read is "off-thread bot work" exactly when it runs on one of these (subclassed by {@link BotMovement}'s movement workers). */
+    public static class WorkerThread extends Thread {
         WorkerThread(final Runnable task, final String name) {
             super(task, name);
             this.setDaemon(true);

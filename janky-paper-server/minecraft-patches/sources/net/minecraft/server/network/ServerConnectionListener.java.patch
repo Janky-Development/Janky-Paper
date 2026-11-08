@@ -11,3 +11,17 @@
              // Paper end - Use Velocity cipher
              this.channels
                  .add(
+@@ -296,11 +_,13 @@
+         synchronized (this.connections) {
+             // Paper start - Add maximum time to wait for channels to close
+             for (final Connection connection : this.connections) {
++                if (connection.channel == null) continue; // Janky Paper - channel setup failed before it became active; nothing to close
+                 connection.channel.close();
+             }
+ 
+             final long startTime = System.nanoTime();
+             for (final Connection connection : this.connections) {
++                if (connection.channel == null) continue; // Janky Paper - see above
+                 final ChannelFuture closeFuture = connection.channel.closeFuture();
+ 
+                 if (closeFuture.awaitUninterruptibly(TimeUnit.SECONDS.toNanos(30) - (System.nanoTime() - startTime), TimeUnit.NANOSECONDS)) {

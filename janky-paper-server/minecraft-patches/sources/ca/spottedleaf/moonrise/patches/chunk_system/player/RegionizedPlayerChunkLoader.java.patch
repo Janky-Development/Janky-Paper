@@ -1,13 +1,49 @@
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
-@@ -312,6 +_,7 @@
+@@ -179,6 +_,7 @@
+     }
+ 
+     private final ServerLevel world;
++    public final dev.jankypaper.server.bot.BotChunkTickets jankyBotTickets = new dev.jankypaper.server.bot.BotChunkTickets(); // Janky Paper - lightweight bots - one shared, ref-counted ticket set for all bots
+ 
+     public RegionizedPlayerChunkLoader(final ServerLevel world) {
+         this.world = world;
+@@ -312,7 +_,9 @@
                  // not our problem anymore
                  continue;
              }
 +            if (player.jankyBot && ((net.minecraft.server.MinecraftServer.currentTick + loader.id) & 1L) != 0L) continue; // Janky Paper - lightweight bots - bots' chunk queues run every other tick, half of them each tick
              loader.update(); // can't invoke plugin logic
++            if (loader.jankyBot && loader.jankyIdle()) continue; // Janky Paper - lightweight bots - nothing queued: skip the rate limiters and queue checks
              loader.updateQueues(currTime);
          }
+     }
+@@ -417,13 +_,23 @@
+         public PlayerChunkLoaderData(final ServerLevel world, final ServerPlayer player) {
+             this.world = world;
+             this.player = player;
+-        }
++            this.jankyBot = player.jankyBot; // Janky Paper - lightweight bots
++        }
++
++        // Janky Paper start - lightweight bots
++        private final boolean jankyBot; // fixed for the loader's life, so its tickets always go through the same path
++
++        boolean jankyIdle() {
++            return this.loadQueue.isEmpty() && this.loadingQueue.isEmpty() && this.genQueue.isEmpty() && this.generatingQueue.isEmpty()
++                && this.tickingQueue.isEmpty() && this.sendQueue.isEmpty() && this.delayedTicketOps.isEmpty();
++        }
++        // Janky Paper end - lightweight bots
+ 
+         private void flushDelayedTicketOps() {
+             if (this.delayedTicketOps.isEmpty()) {
+                 return;
+             }
+-            ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.performTicketUpdates(this.delayedTicketOps);
++            ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.performTicketUpdates(this.jankyBot ? ((ChunkSystemServerLevel)this.world).moonrise$getPlayerChunkLoader().jankyBotTickets.translate(this.delayedTicketOps) : this.delayedTicketOps); // Janky Paper - lightweight bots - shared ref-counted tickets
+             this.delayedTicketOps.clear();
+         }
+ 
 @@ -433,6 +_,7 @@
  
          private void sendChunk(final int chunkX, final int chunkZ) {
@@ -72,3 +108,11 @@
                      );
                      if (this.removed) {
                          return;
+@@ -835,6 +_,7 @@
+             }
+ 
+             // try to pull sending chunks
++            if (this.jankyBot) while (!this.sendQueue.isEmpty()) this.sentChunks.add(this.sendQueue.dequeueLong()); // Janky Paper - lightweight bots - no client: mark them sent at once, no rate limit, neighbour wait or post-processing
+             final long maxSends = Math.max(0L, Math.min(MAX_RATE, Math.min(this.sendQueue.size(), Integer.MAX_VALUE))); // note: no logic to track concurrent sends
+             final long maxSendsThisTick = this.chunkSendLimiter.takeAllocation(maxSends);
+             // we do not return sends that we took from the allocation back because we want to limit the max send rate, not target it

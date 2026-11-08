@@ -9,3 +9,11 @@
              List<Entity> orbs = Lists.newArrayList();
  
              for (Entity entity : entities) {
+@@ -1509,6 +_,7 @@
+ 
+     @Override
+     public void travel(final Vec3 input) {
++        if (this instanceof net.minecraft.server.level.ServerPlayer jankyBot && jankyBot.jankyMoveState != 0 && dev.jankypaper.server.bot.BotMovement.capture(jankyBot, input)) return; // Janky Paper - parallel bot movement - recorded now, run on a worker thread after the plugin's tick loop
+         if (this.isPassenger()) {
+             super.travel(input);
+         } else {
