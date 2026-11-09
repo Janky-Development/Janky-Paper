@@ -263,6 +263,7 @@ public final class BotMovement {
             bot.jankyMoveState = EXECUTING;
             try {
                 bot.travel(bot.jankyTravelInput);
+                bot.jankyComputeInertHint(); // read-only: lets the main thread skip block effects that cannot do anything
             } catch (final Throwable t) {
                 report(t);
             } finally {
@@ -274,6 +275,7 @@ public final class BotMovement {
     /** Phase 3, main thread: what the move left for us. */
     private static void apply(final ServerPlayer bot) {
         if (bot.jankyMoveState != MOVED || bot.isRemoved()) {
+            bot.jankyInertHint = false; // never let a hint outlive this tick
             return;
         }
         try {

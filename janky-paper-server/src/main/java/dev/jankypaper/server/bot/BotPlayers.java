@@ -42,6 +42,8 @@ import org.bukkit.configuration.ConfigurationSection;
  *       ticks near bots keep running</li>
  *   <li>a smaller entity-activation radius around bots ({@code activation-range-multiplier}, 0.5 by default): mobs
  *       only near bots run Spigot's cheap inactive tick until a bot is within half the usual range</li>
+ *   <li>bots further than {@code distant-update-range} from every player watching them send their movement every
+ *       {@code distant-update-interval} ticks instead of every 2</li>
  * </ul>
  *
  * <p>Packets a plugin sends or that are addressed to the bot itself (chat, titles, knockback motion)
@@ -56,6 +58,8 @@ public final class BotPlayers {
     private static boolean affectMobSpawning = true;
     private static double activationRangeMultiplier = 0.5;
     private static int spawnRepresentativeEvery = 1000;
+    private static volatile int distantUpdateInterval = 4;
+    private static volatile double distantUpdateRangeSq = 64.0 * 64.0;
     private static int online;
 
     // UUIDs a fake-player plugin announced (expectBot) right before constructing the bot's ServerPlayer
@@ -231,6 +235,16 @@ public final class BotPlayers {
         return activationRangeMultiplier;
     }
 
+    /** Ticks between movement updates of a bot far from every player watching it (2 = vanilla, every bot). */
+    public static int distantUpdateInterval() {
+        return enabled ? distantUpdateInterval : 2;
+    }
+
+    /** Squared distance beyond which a watcher counts as far for {@link #distantUpdateInterval()}. */
+    public static double distantUpdateRangeSq() {
+        return distantUpdateRangeSq;
+    }
+
     public static boolean vanillaPush() {
         return vanillaPush;
     }
@@ -262,6 +276,9 @@ public final class BotPlayers {
         activationRangeMultiplier = Math.max(0.0, section.getDouble("activation-range-multiplier", 0.5));
         spawnRepresentativeEvery = Math.max(0, section.getInt("mob-spawn-representative-every", 1000));
         BotMovement.setEnabled(section.getBoolean("parallel-movement", false));
+        distantUpdateInterval = Math.max(2, Math.min(20, section.getInt("distant-update-interval", 4)));
+        final double range = Math.max(8.0, section.getDouble("distant-update-range", 64.0));
+        distantUpdateRangeSq = range * range;
     }
 
     public static void write(final ConfigurationSection section) {
@@ -273,6 +290,8 @@ public final class BotPlayers {
         section.set("activation-range-multiplier", activationRangeMultiplier);
         section.set("mob-spawn-representative-every", spawnRepresentativeEvery);
         section.set("parallel-movement", BotMovement.enabled());
+        section.set("distant-update-interval", distantUpdateInterval);
+        section.set("distant-update-range", Math.sqrt(distantUpdateRangeSq));
     }
 
     private static int distance(final int value) {

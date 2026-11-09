@@ -9,6 +9,129 @@
          synchronized (this.posLock) {
              this.moveStartX = this.getX();
              this.moveStartY = this.getY();
+@@ -1426,6 +_,8 @@
+             this.finalMovementsThisTick.add(new Entity.Movement(this.finalMovementsThisTick.getLast().to, this.position()));
+         }
+ 
++        this.jankyHintThisCall = this.jankyInertHint; // Janky Paper - parallel bot movement: block-effect hint from the worker
++        this.jankyInertHint = false; // Janky Paper
+         this.applyEffectsFromBlocks(this.finalMovementsThisTick);
+     }
+ 
+@@ -1463,8 +_,10 @@
+     }
+ 
+     private void applyEffectsFromBlocks(final List<Entity.Movement> movements) {
++        final boolean jankyHint = this.jankyHintThisCall; // Janky Paper - the worker already found nothing to react (stepOn and inside-block effects)
++        this.jankyHintThisCall = false; // Janky Paper
+         if (this.isAffectedByBlocks()) {
+-            if (this.onGround()) {
++            if (this.onGround() && !jankyHint) { // Janky Paper
+                 BlockPos effectPos = this.getOnPosLegacy();
+                 BlockState effectState = this.level().getBlockState(effectPos);
+                 effectState.getBlock().stepOn(this.level(), effectPos, effectState, this);
+@@ -1473,8 +_,10 @@
+             boolean wasOnFire = this.isOnFire();
+             boolean wasFreezing = this.isFreezing();
+             int previousRemainingFireTicks = this.getRemainingFireTicks();
+-            this.checkInsideBlocks(movements, this.insideEffectCollector);
+-            this.insideEffectCollector.applyAndClear(this);
++            if (!jankyHint && !this.jankySweepIsInert(movements)) { // Janky Paper - nothing in the swept blocks reacts to an entity: skip the block walk
++                this.checkInsideBlocks(movements, this.insideEffectCollector);
++                this.insideEffectCollector.applyAndClear(this);
++            } // Janky Paper
+             if (this.isInRain()) {
+                 this.clearFire();
+             }
+@@ -1494,6 +_,88 @@
+         return !this.isRemoved() && !this.noPhysics;
+     }
+ 
++    // Janky Paper start - inert sweep
++    /**
++     * Whether every block the entity's box covered at any end point of this tick's movements is one nothing happens in
++     * (see {@link dev.jankypaper.server.world.InertBlocks}): then {@link #checkInsideBlocks} would visit only blocks
++     * that do nothing, and the effect collector stays empty.
++     */
++    private boolean jankySweepIsInert(final List<Entity.Movement> movements) {
++        if (movements.isEmpty() || !dev.jankypaper.server.world.InertBlocks.applies(this)) return false;
++        if (this.level() instanceof ServerLevel serverLevel
++            && serverLevel.getServer().debugSubscribers().hasAnySubscriberFor(DebugSubscriptions.ENTITY_BLOCK_INTERSECTIONS)) {
++            return false;
++        }
++        double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY, minZ = Double.POSITIVE_INFINITY;
++        double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY, maxZ = Double.NEGATIVE_INFINITY;
++        for (final Entity.Movement movement : movements) {
++            for (int end = 0; end < 2; end++) {
++                final AABB box = this.makeBoundingBox(end == 0 ? movement.from() : movement.to());
++                minX = Math.min(minX, box.minX);
++                minY = Math.min(minY, box.minY);
++                minZ = Math.min(minZ, box.minZ);
++                maxX = Math.max(maxX, box.maxX);
++                maxY = Math.max(maxY, box.maxY);
++                maxZ = Math.max(maxZ, box.maxZ);
++            }
++        }
++        return dev.jankypaper.server.world.InertBlocks.allInert(this.level(), Mth.floor(minX), Mth.floor(minY), Mth.floor(minZ),
++            Mth.floor(maxX), Mth.floor(maxY), Mth.floor(maxZ), this.getRemainingFireTicks() <= 0); // not burning: water does nothing either
++    }
++
++    // Janky Paper start - parallel bot movement: block-effect hint
++    /** Set by a movement worker right after this bot's parallel move; consumed by the next {@link #applyEffectsFromBlocks()}. */
++    public boolean jankyInertHint;
++    private boolean jankyHintThisCall;
++
++    /**
++     * Movement worker thread, right after the bot's parallel travel, while the world is read-only: whether this tick's
++     * block effects can only be no-ops - every block its box swept through is inert, and the block it stands on has no
++     * {@code stepOn} reaction. Reads blocks only; the main thread then skips that work (see {@link #applyEffectsFromBlocks}).
++     */
++    public final void jankyComputeInertHint() {
++        this.jankyInertHint = false;
++        if (!this.isAffectedByBlocks() || !dev.jankypaper.server.world.InertBlocks.applies(this)) return;
++        if (this.level() instanceof ServerLevel serverLevel
++            && serverLevel.getServer().debugSubscribers().hasAnySubscriberFor(DebugSubscriptions.ENTITY_BLOCK_INTERSECTIONS)) {
++            return;
++        }
++        if (this.onGround()) {
++            final BlockState under = this.level().getBlockStateIfLoaded(this.getOnPosLegacy());
++            if (under == null || dev.jankypaper.server.world.InertBlocks.reactsToStepOn(under)) return;
++        }
++        // the movements applyEffectsFromBlocks() will use: this tick's recorded steps, or old -> current position
++        double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY, minZ = Double.POSITIVE_INFINITY;
++        double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY, maxZ = Double.NEGATIVE_INFINITY;
++        final java.util.Iterator<Entity.Movement> recorded = this.movementThisTick.iterator();
++        Entity.Movement step = null;
++        for (int i = 0; i < 2 || recorded.hasNext() || step != null; i++) {
++            final Vec3 point;
++            if (i == 0) {
++                point = this.oldPosition();
++            } else if (i == 1) {
++                point = this.position();
++            } else if (step != null) {
++                point = step.to(); // second end of the step read last time
++                step = null;
++            } else {
++                step = recorded.next();
++                point = step.from();
++            }
++            final AABB box = this.makeBoundingBox(point);
++            minX = Math.min(minX, box.minX);
++            minY = Math.min(minY, box.minY);
++            minZ = Math.min(minZ, box.minZ);
++            maxX = Math.max(maxX, box.maxX);
++            maxY = Math.max(maxY, box.maxY);
++            maxZ = Math.max(maxZ, box.maxZ);
++        }
++        this.jankyInertHint = dev.jankypaper.server.world.InertBlocks.allInert(this.level(), Mth.floor(minX), Mth.floor(minY), Mth.floor(minZ),
++            Mth.floor(maxX), Mth.floor(maxY), Mth.floor(maxZ), this.getRemainingFireTicks() <= 0); // not burning: water does nothing either
++    }
++    // Janky Paper end - parallel bot movement: block-effect hint
++    // Janky Paper end - inert sweep
++
+     private boolean isStateClimbable(final BlockState state) {
+         return state.is(BlockTags.CLIMBABLE) || state.is(Blocks.POWDER_SNOW);
+     }
 @@ -5197,16 +_,7 @@
                  }
              }
@@ -23,7 +146,7 @@
 -                    serverLevel.getWaypointManager().updatePlayer(player);
 -                }
 -            }
-+            if (this instanceof ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.EXECUTING) jankyBot.jankyMovedOffThread = true; else jankyMoveCallbacks(x, z); // Janky Paper - parallel bot movement - shared structures are updated on the main thread afterwards
++            if (this instanceof ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.EXECUTING) jankyBot.jankyMovedOffThread = true; else jankyMoveCallbacks(x, y, z); // Janky Paper - parallel bot movement - shared structures are updated on the main thread afterwards
              // Paper start - Fix MC-44654
              if (!this.getType().hasUpdateInterval()) {
                  this.needsSync = true;
@@ -34,11 +157,11 @@
 +
 +    // Janky Paper start - parallel bot movement
 +    /** What a position change tells the shared structures: the entity lookup's sections, the locator bar, the player grid. */
-+    private void jankyMoveCallbacks(final double x, final double z) {
++    private void jankyMoveCallbacks(final double x, final double y, final double z) {
 +        this.levelCallback.onMove();
-+        if (this instanceof ServerPlayer jankyPlayer && jankyPlayer.jankyGridTracker != null) jankyPlayer.jankyGridTracker.moved(x, z); // Janky Paper - player grid - keep its snapshot bounds exact (null only while constructing)
++        if (this instanceof ServerPlayer jankyPlayer && jankyPlayer.jankyGridTracker != null) jankyPlayer.jankyGridTracker.moved(x, y, z); // Janky Paper - player grid - keep its snapshot bounds exact (null only while constructing)
 +        if (!this.firstTick && this.level instanceof ServerLevel serverLevel && !this.isRemoved()) {
-+            if (this instanceof WaypointTransmitter waypoint && waypoint.isTransmittingWaypoint()) {
++            if (serverLevel.getWaypointManager().jankyHasReceivers() && this instanceof WaypointTransmitter waypoint && waypoint.isTransmittingWaypoint()) { // Janky Paper - nobody receives waypoints in this world: nothing to update
 +                serverLevel.getWaypointManager().updateWaypoint(waypoint);
 +            }
 +
@@ -50,7 +173,7 @@
 +
 +    /** The callbacks {@link #setPosRaw} skipped while this entity moved on a movement worker thread - main thread, after the move. */
 +    public final void jankyApplyDeferredMoveCallbacks() {
-+        this.jankyMoveCallbacks(this.position.x, this.position.z);
++        this.jankyMoveCallbacks(this.position.x, this.position.y, this.position.z);
 +    }
 +    // Janky Paper end - parallel bot movement
  

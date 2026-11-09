@@ -144,6 +144,8 @@ bots:
   activation-range-multiplier: 0.5  # entity activation range around bots, as a multiple of spigot.yml's
   mob-spawn-representative-every: 1000  # above this many bots, only 1 in (online / this) counts for mob caps
   parallel-movement: false   # EXPERIMENTAL: bots' movement physics on worker threads (needs a plugin that uses it, e.g. FPP)
+  distant-update-interval: 4 # ticks between movement updates of a bot far from every viewer (2 = vanilla)
+  distant-update-range: 64.0 # blocks - a viewer further than this counts as far
 logging:
   mask-player-ips: true      # 85.226.123.45 is logged as 85.226.***.** (join line, login/kick messages, packet errors)
 ```
@@ -173,6 +175,7 @@ logging:
 | `affect-mob-spawning` | `true` | Whether bots make mobs spawn around them like real players. With thousands of bots spread out, natural spawning around all of them is one of the largest remaining costs (~10% of the tick at 10,000 roaming bots). `false` leaves bots out of natural spawning, despawn distance checks and spawners; chunks around bots still tick (crops grow, furnaces run), and real players spawn mobs normally. |
 | `activation-range-multiplier` | `0.5` | Multiplies the `spigot.yml` entity activation ranges around each bot. Mobs that are only near bots - not near any real player - keep full AI within half the usual range and run Spigot's cheap inactive tick beyond it. Real players keep their full ranges, so anything near you behaves normally. `1.0` = treat bots like players. |
 | `mob-spawn-representative-every` | `1000` | Paper's per-player mob caps cost mobs x players every tick (each mob adds itself to every nearby player's count; each spawn attempt checks every nearby player). Up to this many bots online every bot counts as a mob-spawning player, exactly like vanilla - an AFK bot at a farm behaves normally. Above it, only one bot in `online / this` counts (chosen by UUID, re-checked as the count changes), so a 10,000-bot crowd costs and spawns mobs like a ~1,000-bot crowd. `0` = every bot always counts. |
+| `distant-update-interval` / `distant-update-range` | `4` / `64.0` | A bot further than `distant-update-range` blocks from **every** player watching it sends its movement every `distant-update-interval` ticks instead of every 2 (staggered by entity id, so the sends spread evenly). Halves the movement packets built for the far part of a crowd a recording player is looking at; bots that close in on a viewer go back to every 2 ticks at once, and gliding bots always update every 2 ticks. `2` = vanilla. |
 | `parallel-movement` | `false` | **Experimental.** Lets a plugin hand the movement physics of all its bots to Janky Paper, which runs them together on worker threads after the plugin's tick - see [Parallel bot movement](#parallel-bot-movement-experimental). Does nothing without a plugin that uses it (FPP does). Not benchmarked yet; turn it on, watch the console for `Parallel bot movement:` lines, and turn it off again if bots misbehave. |
 
 ### `logging` keys
@@ -241,6 +244,12 @@ is easy to spot.
 | **Per-tick per-player busywork** | Bots skip the network flush and update their attribute modifiers once a second. The per-tick `PlayerNaturallySpawnCreaturesEvent` is not fired for bots (their spawn radius is kept and re-checked once a second). Endermen never treat a bot as staring at them. | bots |
 | **Mob despawn checks** | With more than 64 players in a world, each mob checks for despawning every 4th tick (staggered) instead of every tick; the random despawn chance is scaled so despawn rates stay the same. | mobs x players |
 | **Crowded entity sections** | Moonrise's per-section entity lists checked for duplicates and removed entries by scanning the whole list - in a crowd, thousands of bots per section, several times per bot crossing a section border. Lists above 32 entries now keep a hash index (O(1) add/remove). Helps any crowded area, not just bots. | bots x bots |
+| **Block-effect walk of plain ground** | Every tick, every moving entity walks each block its box swept through and asks it to react (cobweb, fire, portal, pressure plate, berry bush, powder snow, fluids - vanilla's `entityInside`), step by step with a lambda per block and an effect-collector flush - 3.5% of a 10,000-bot roam tick, almost all of it over blocks where nothing can happen. The blocks of the swept box are now read once; when none has a fluid and none of their block classes overrides `entityInside` (air, grass, flowers, slabs, carpet... - decided per class), the walk and the flush are skipped. Water also counts as inert for anything that isn't burning (its only reaction is putting out fire, and the fire ticks are reset at the end either way) - a crowd partly standing in a lake used to take the full walk for every bot in the water. Exact: such a visit has no effect. Real players (the "enter block" advancement trigger) and ender pearls always take the full walk. Applies to mobs too. | entities |
+| **Nearest-player searches in 3D** | The [player grid](#player-grid-mob-nearest-player-searches) bounded its searches by horizontal distance only, so a mob in a cave under a crowd (or a bird above it) could not rule out any part of the crowd and checked every bot in it - 43% of the server thread with 10,000 bots standing over a cave system. The grid now keeps each square's height range (and a player moving more than a block vertically goes on the overflow list like a horizontal move), so 3D searches skip whole squares above or below. Exact. | mobs x bots |
+| **Pose checks** | Every player tick checks whether the body fits its pose: vanilla tests the swimming box first, then the desired pose. Every pose except sleeping contains the swimming box, so when the desired pose fits, the swimming test is skipped (one collision query instead of two). Exact. Applies to real players too. | bots |
+| **Locator-bar updates nobody receives** | Every entity move (bots and mobs) read the transmit-range attribute and built several set views and copies for the waypoint manager, even in a world with no player receiving waypoints. Skipped there. | entities |
+| **Sprint re-applies** | Vanilla's `setSprinting` removes and re-adds the sprint speed modifier on every call, even when nothing changes - and the re-dirtied movement-speed attribute is then sent to every player tracking that entity. Plugin bots (and mob AI) set the same sprint state every tick, so every sprinting bot cost an attribute packet per viewer per tick. A call that changes nothing now does nothing. Applies to all entities. | bots x viewers |
+| **Movement updates of far bots** | Bots further than `bots.distant-update-range` from every viewer send movement every `bots.distant-update-interval` ticks (4) instead of every 2. | bots x viewers |
 | **Tracker updates nobody receives** | Every entity in a ticking chunk built a movement packet every tick even with no player watching it. With no viewers it now only keeps the state a later viewer needs (and Paper's forced resync sends the full position when one arrives). Applies to all entities. | entities |
 
 ### What bots keep
@@ -370,6 +379,13 @@ Known trade-offs: a bot's body rotation follows its head instead of its walking 
 before the move now), item pickup and pose updates use the position from the start of the tick (one tick late), and
 the first tick after a spawn is always inline.
 
+Measured (server-side benchmark below, 10,000 bots packed in a 24-block radius): a **walking** crowd drops from
+120 ms to 103 ms per tick (bot physics on the main thread 73 ms -> 46 ms, plus a 16 ms flush), but a **fighting** crowd
+- bots standing toe to toe, barely moving - gets slightly slower (127 ms -> 140 ms): there the hand-off costs more than
+the movement it moves off the main thread. While moving, each worker also works out whether the bot's block effects
+(cobwebs, fire, pressure plates, water...) can do anything this tick, so the main thread skips that pass when they
+cannot. Keep it off for fight-heavy recordings.
+
 Plugin hooks (`dev.jankypaper.server.bot.BotMovement`, reflection, `API_VERSION` = 1): `boolean isAvailable()`,
 `void defer(org.bukkit.entity.Player)` right before the bot's `doTick()`, `boolean isDeferred(Player)` after it, and
 `void flush()` after the loop.
@@ -472,6 +488,11 @@ Janky Paper works with any FPP build, but these FPP features use it:
 | Knockback / separation pushes | Pushes set the bot's motion directly, without the "sync to the client" flag a bot has no use for (it made the entity tracker fire a `PlayerVelocityEvent` and build a motion packet per push). FPP builds against older server internals, and the field it used to set was renamed in 26.3 (`hurtMarked` -> `syncVelocity`), which threw and caught an error on every push. |
 | Crowd separation pass | Each bot's game mode, collidable flag and scoreboard team are read once per pass instead of once per pair (up to 12 pairs per bot), and the edge check reads block types without creating `Block` objects. |
 | Combat tick | The combat AI asked "do I carry a shield / totem / golden apple / arrows / the cart kit / a bow" about a dozen times per fighting bot per tick, each a 36-slot inventory scan; they now read one half-second snapshot per bot. The target entity behind the target UUID is cached (it was looked up in every world's entity map each tick), the shield cooldown is cached, gear upkeep (best weapon / armor) runs every half second instead of every tick, a ranged bot's line-of-sight re-check runs every few ticks instead of every tick, and the chase destination (target prediction) is only computed on the ticks the chase actually plans a route. |
+| **Bot quality levels** (`performance.quality`) | `auto` (default), `ultra`, `high`, `balanced`, `low`, `potato`. Each bot gets a tier from its distance to the nearest real player (full within the bot-detail full range, reduced within the mid range, minimal beyond); the level decides what each tier gives up - path search budget and route smoothing, head turns toward watchers, leading moving targets and reacting to drawn bows, the width of the elytra obstacle scan - and lower levels stretch the bot-detail intervals and shrink the full-detail range. `auto` starts from the bot count and steps down while the average tick stays above 45 ms, back up below 30 ms (logged; `/fpp perf` shows it). Paper only. |
+| **Shared crowd routes** (`pathfinding.flow-fields`) | Once 6 bots ask for a route to about the same spot within a second (a crowd chasing or following one player), one Dijkstra search outward from that spot builds a route table over every walkable block within 48 blocks, and each of those bots reads its route from the table instead of searching. Built on the bot worker threads on Janky Paper; rebuilt where the crowd is headed once that moves 3 blocks. Uses the same walking model and step costs as FPP's A*, minus parkour, block placing/mining and drops that would hurt - bots that need those, or got stuck, search on their own. |
+| Path search block reads | FPP's A* reads each block from the world once per search (a per-search table of material, water/climbable/door flags and collision top/bottom) instead of up to dozens of times; full blocks and air skip the collision-shape query. The per-tick walk checks (corner cuts, obstacle steering) share a 250 ms table. |
+| Elytra | Obstacle probes above the column's highest non-air block (the `WORLD_SURFACE` height map) are answered without reading blocks, and the ground distance under a high glider comes from the `OCEAN_FLOOR` height map instead of a ray cast. The flight planner memoizes blocked lattice points. |
+| Sprinting | FPP only changes a bot's sprint state when it differs (on any server - Janky Paper also fixes it server-side, see [What a bot no longer costs](#what-a-bot-no-longer-costs)). |
 | Parallel movement | With `bots.parallel-movement: true`, FPP ticks in two halves and lets Janky Paper move all bots at once between them - see [Parallel bot movement](#parallel-bot-movement-experimental). The console prints `Bot movement runs on the server's parallel movement pass (Janky Paper)` once. |
 
 **Recommended:**
@@ -508,6 +529,26 @@ bot detail levels; with you online, bots within 48 blocks of you run at full det
 | `fpp attack @a` (free-for-all) | ~550-650 ms (minutes-long freezes before the combat index) | ~380 ms (~2.6 TPS) | ~390-480 ms (~2-2.5 TPS) |
 
 Run-to-run noise is about +-15%.
+
+**Server-side benchmark, 2026-11-08** (a test plugin spawns 10,000 bare bot players - fake connections, no FPP AI - in
+a 24-block radius and drives them with vanilla physics: *nothing* = bots not ticked, *idle* = standing, *walk* = sprinting
+in random directions, *fight* = keeping a target and swinging at it). Same machine (6 cores / 12 threads, 12 GB heap;
+another server and a game client were running on it too). This isolates what Janky Paper itself costs per bot; FPP's
+AI comes on top.
+
+| 10,000 bots | 2026-11-06 | 2026-11-08, start of day | 2026-11-08, end of day |
+|---|---|---|---|
+| nothing | 137 ms | 60 ms | **37 ms** |
+| idle | 414 ms | 134 ms | **95 ms** |
+| walk | 613 ms | 202 ms | **120 ms** (103 ms with `parallel-movement`) |
+| fight | 1,100-2,900 ms | - | **127 ms** (140 ms with `parallel-movement`) |
+
+The 11-08 changes behind the right-hand column: the inert-sweep block-effect skip (and water counting as inert for
+anything not burning), one collision check instead of two for a player's pose, no locator-bar work in a world without
+receivers, nearest-player searches bounded in 3D (a mob in a cave under a crowd checked every bot of it), and - for
+parallel movement - the block-effect check moved onto the movement workers. What is left at idle is mostly vanilla
+physics (standing bots still run gravity and collision every tick - FPP's detail levels skip most of those ticks for
+bots away from you) and the mobs around the crowd.
 
 **Round 4 (not measured yet):** the shared bot chunk tickets, idle chunk-loader skip, single-pass bot activation,
 finer player grid, grid-based spawning-chunk check, crowded-section index, no-viewer tracker path and cached world

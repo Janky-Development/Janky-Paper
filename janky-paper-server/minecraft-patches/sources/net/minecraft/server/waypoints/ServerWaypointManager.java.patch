@@ -1,5 +1,26 @@
 --- a/net/minecraft/server/waypoints/ServerWaypointManager.java
 +++ b/net/minecraft/server/waypoints/ServerWaypointManager.java
+@@ -27,6 +_,12 @@
+     }
+     // Paper end - optimize ServerWaypointManager with locator bar disabled
+ 
++    // Janky Paper start - whether any player in this world receives waypoints (real players; bots never do)
++    public boolean jankyHasReceivers() {
++        return this.locatorBarEnabled && !this.players.isEmpty();
++    }
++    // Janky Paper end
++
+     @Override
+     public void trackWaypoint(final WaypointTransmitter waypoint) {
+         this.waypoints.add(waypoint);
+@@ -40,6 +_,7 @@
+     @Override
+     public void updateWaypoint(final WaypointTransmitter waypoint) {
+         if (!this.locatorBarEnabled) return; // Paper - optimize ServerWaypointManager with locator bar disabled
++        if (this.players.isEmpty()) return; // Janky Paper - no receivers means no connections either: nothing to update (the views and copies below cost every entity move)
+         if (this.waypoints.contains(waypoint)) {
+             Map<ServerPlayer, WaypointTransmitter.Connection> playerConnection = Tables.transpose(this.connections).row(waypoint);
+             SetView<ServerPlayer> potentialPlayers = Sets.difference(this.players, playerConnection.keySet());
 @@ -62,7 +_,7 @@
      }
  

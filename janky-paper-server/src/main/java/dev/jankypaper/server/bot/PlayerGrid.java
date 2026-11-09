@@ -49,6 +49,7 @@ public final class PlayerGrid {
         private final ServerPlayer player;
         private @Nullable PlayerGrid grid;
         private double x;
+        private double y;
         private double z;
         private boolean overflowed;
 
@@ -57,9 +58,10 @@ public final class PlayerGrid {
         }
 
         /** Called from {@code Entity#setPosRaw} whenever the player's position changes. */
-        public void moved(final double newX, final double newZ) {
+        public void moved(final double newX, final double newY, final double newZ) {
             final PlayerGrid owner = this.grid;
-            if (owner != null && !this.overflowed && (Math.abs(newX - this.x) > SLACK || Math.abs(newZ - this.z) > SLACK)) {
+            if (owner != null && !this.overflowed
+                && (Math.abs(newX - this.x) > SLACK || Math.abs(newZ - this.z) > SLACK || Math.abs(newY - this.y) > SLACK)) {
                 this.overflowed = true;
                 owner.overflow.add(this.player);
             }
@@ -71,6 +73,10 @@ public final class PlayerGrid {
         final double minX;
         final double minZ;
         final double size;
+        // height range of the players in this square (snapshot): 3D searches skip squares entirely above or below them -
+        // a mob in a cave under a crowd used to find every player of the crowd "horizontally close" and check them all
+        final double minY;
+        final double maxY;
         final int start;
         final int end;
         final Node @Nullable [] subs; // non-null when split; null entries are empty sub-cells
@@ -78,21 +84,31 @@ public final class PlayerGrid {
         // are interchangeable, so a search takes the first one that qualifies
         final boolean tight;
 
-        Node(final double minX, final double minZ, final double size, final int start, final int end, final Node @Nullable [] subs, final boolean tight) {
+        Node(final double minX, final double minZ, final double size, final double minY, final double maxY,
+             final int start, final int end, final Node @Nullable [] subs, final boolean tight) {
             this.minX = minX;
             this.minZ = minZ;
             this.size = size;
+            this.minY = minY;
+            this.maxY = maxY;
             this.start = start;
             this.end = end;
             this.subs = subs;
             this.tight = tight;
         }
 
-        /** Squared horizontal distance from (x, z) to this square, less the movement slack (a lower bound). */
-        double minDistSq(final double x, final double z) {
+        /**
+         * Squared distance from (x, y, z) to this square's players, less the movement slack (a lower bound): horizontal
+         * only, or with the height range when {@code horizontal} is false.
+         */
+        double minDistSq(final double x, final double y, final double z, final boolean horizontal) {
             final double dx = Math.max(0.0, Math.max(this.minX - x, x - (this.minX + this.size)) - SLACK);
             final double dz = Math.max(0.0, Math.max(this.minZ - z, z - (this.minZ + this.size)) - SLACK);
-            return dx * dx + dz * dz;
+            if (horizontal) {
+                return dx * dx + dz * dz;
+            }
+            final double dy = Math.max(0.0, Math.max(this.minY - y, y - this.maxY) - SLACK);
+            return dx * dx + dz * dz + dy * dy;
         }
     }
 
@@ -107,10 +123,12 @@ public final class PlayerGrid {
     // snapshot, grouped so every leaf owns one contiguous slice
     private ServerPlayer[] players = new ServerPlayer[0];
     private double[] xs = new double[0];
+    private double[] ys = new double[0];
     private double[] zs = new double[0];
     // build scratch
     private ServerPlayer[] tmpPlayers = new ServerPlayer[0];
     private double[] tmpXs = new double[0];
+    private double[] tmpYs = new double[0];
     private double[] tmpZs = new double[0];
     private int[] tmpKeys = new int[0];
     private int[] counts = new int[16];
@@ -155,9 +173,11 @@ public final class PlayerGrid {
             final int cap = Math.max(n, this.players.length + (this.players.length >> 1));
             this.players = new ServerPlayer[cap];
             this.xs = new double[cap];
+            this.ys = new double[cap];
             this.zs = new double[cap];
             this.tmpPlayers = new ServerPlayer[cap];
             this.tmpXs = new double[cap];
+            this.tmpYs = new double[cap];
             this.tmpZs = new double[cap];
             this.tmpKeys = new int[cap];
         }
@@ -170,10 +190,12 @@ public final class PlayerGrid {
         for (int i = 0; i < n; ++i) {
             final ServerPlayer player = all.get(i);
             final double x = player.getX();
+            final double y = player.getY();
             final double z = player.getZ();
             final Tracker tracker = player.jankyGridTracker;
             tracker.grid = this;
             tracker.x = x;
+            tracker.y = y;
             tracker.z = z;
             tracker.overflowed = false;
             final int cx = Mth.floor(x) >> TOP_SHIFT;
@@ -191,6 +213,7 @@ public final class PlayerGrid {
             ++this.counts[ordinal];
             this.tmpPlayers[i] = player;
             this.tmpXs[i] = x;
+            this.tmpYs[i] = y;
             this.tmpZs[i] = z;
             this.tmpKeys[i] = ordinal;
             this.minX = Math.min(this.minX, cx);
@@ -209,6 +232,7 @@ public final class PlayerGrid {
             final int at = this.counts[this.tmpKeys[i]]++;
             this.players[at] = this.tmpPlayers[i];
             this.xs[at] = this.tmpXs[i];
+            this.ys[at] = this.tmpYs[i];
             this.zs[at] = this.tmpZs[i];
             this.tmpPlayers[i] = null; // don't keep removed players reachable through the scratch array
         }
@@ -231,6 +255,11 @@ public final class PlayerGrid {
 
     private Node buildNode(final int start, final int end, final int minX, final int minZ, final int shift) {
         final int count = end - start;
+        double lowY = Double.MAX_VALUE, highY = -Double.MAX_VALUE;
+        for (int i = start; i < end; ++i) {
+            lowY = Math.min(lowY, this.ys[i]);
+            highY = Math.max(highY, this.ys[i]);
+        }
         if (count > DENSE && shift > 0) {
             final int childShift = Math.max(0, shift - 2);
             final int perAxis = 1 << (shift - childShift);
@@ -252,10 +281,12 @@ public final class PlayerGrid {
                 final int at = start + fill[this.tmpKeys[i]]++;
                 this.tmpPlayers[at] = this.players[i];
                 this.tmpXs[at] = this.xs[i];
+                this.tmpYs[at] = this.ys[i];
                 this.tmpZs[at] = this.zs[i];
             }
             System.arraycopy(this.tmpPlayers, start, this.players, start, count);
             System.arraycopy(this.tmpXs, start, this.xs, start, count);
+            System.arraycopy(this.tmpYs, start, this.ys, start, count);
             System.arraycopy(this.tmpZs, start, this.zs, start, count);
             java.util.Arrays.fill(this.tmpPlayers, start, end, null);
             final Node[] subs = new Node[children];
@@ -266,7 +297,7 @@ public final class PlayerGrid {
                     subs[c] = this.buildNode(childStart, childEnd, minX + ((c % perAxis) << childShift), minZ + ((c / perAxis) << childShift), childShift);
                 }
             }
-            return new Node(minX, minZ, 1 << shift, start, end, subs, false);
+            return new Node(minX, minZ, 1 << shift, lowY, highY, start, end, subs, false);
         }
         double lowX = Double.MAX_VALUE, highX = -Double.MAX_VALUE, lowZ = Double.MAX_VALUE, highZ = -Double.MAX_VALUE;
         for (int i = start; i < end; ++i) {
@@ -275,8 +306,8 @@ public final class PlayerGrid {
             lowZ = Math.min(lowZ, this.zs[i]);
             highZ = Math.max(highZ, this.zs[i]);
         }
-        final boolean tight = count > DENSE && highX - lowX < 0.5 && highZ - lowZ < 0.5;
-        return new Node(minX, minZ, 1 << shift, start, end, null, tight);
+        final boolean tight = count > DENSE && highX - lowX < 0.5 && highZ - lowZ < 0.5 && highY - lowY < 0.5;
+        return new Node(minX, minZ, 1 << shift, lowY, highY, start, end, null, tight);
     }
 
     /**
@@ -432,7 +463,7 @@ public final class PlayerGrid {
                     final boolean edgeX = dx == -ring || dx == ring;
                     for (int dz = -ring; dz <= ring; dz += edgeX ? 1 : 2 * ring) {
                         final Node cell = this.cells.get(key(cx + dx, cz + dz));
-                        if (cell != null && cell.minDistSq(x, z) < this.bestSq) {
+                        if (cell != null && cell.minDistSq(x, y, z, horizontal) < this.bestSq) {
                             this.searchNode(cell, x, y, z, predicate);
                         }
                         if (ring == 0) {
@@ -483,7 +514,7 @@ public final class PlayerGrid {
                     if (sub == null) {
                         continue;
                     }
-                    final double dist = sub.minDistSq(x, z);
+                    final double dist = sub.minDistSq(x, y, z, this.horizontal);
                     if (dist >= this.bestSq) {
                         continue;
                     }
@@ -508,12 +539,18 @@ public final class PlayerGrid {
         }
         final ServerPlayer[] players = this.players;
         final double[] xs = this.xs;
+        final double[] ys = this.ys;
         final double[] zs = this.zs;
+        final boolean horizontal = this.horizontal;
         for (int i = node.start, end = node.end; i < end; ++i) {
             // snapshot lower bound: the live position is within SLACK per axis (or the player is on the overflow list)
             final double gx = Math.abs(xs[i] - x) - SLACK;
             final double gz = Math.abs(zs[i] - z) - SLACK;
-            final double lower = (gx > 0.0 ? gx * gx : 0.0) + (gz > 0.0 ? gz * gz : 0.0);
+            double lower = (gx > 0.0 ? gx * gx : 0.0) + (gz > 0.0 ? gz * gz : 0.0);
+            if (!horizontal) {
+                final double gy = Math.abs(ys[i] - y) - SLACK;
+                if (gy > 0.0) lower += gy * gy;
+            }
             if (lower >= this.bestSq) {
                 continue;
             }

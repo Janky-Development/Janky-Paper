@@ -69,6 +69,8 @@ public final class FocusManager {
           above it only one bot in (online / this) does, so huge crowds spawn mobs like ~this many bots. 0 = all.
           parallel-movement: EXPERIMENTAL. With a plugin that uses it (FPP), the movement physics of all bots run
           together on worker threads after the plugin's tick instead of one by one on the main thread. Off by default.
+          distant-update-interval: a bot further than distant-update-range blocks from every player watching it sends its
+          movement every this many ticks instead of every 2 (gliding bots always every 2). 2 = vanilla.
           Bots are left out of focus mode unless added with /focus add.
 
         logging:

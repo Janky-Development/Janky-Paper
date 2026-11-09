@@ -1,5 +1,22 @@
 --- a/net/minecraft/world/entity/player/Player.java
 +++ b/net/minecraft/world/entity/player/Player.java
+@@ -362,6 +_,16 @@
+     }
+ 
+     public void updatePlayerPose() {
++        // Janky Paper start - one collision check in the common case: every pose but sleeping is a box containing the
++        // swimming box (same width, at least as tall, from the feet), so fitting the desired pose means fitting the
++        // swimming check below too - and vanilla would then pick the desired pose. Only when it does not fit run the rest.
++        final Pose jankyDesired = this.getDesiredPose();
++        if (jankyDesired != Pose.SLEEPING && !this.isSpectator() && !this.isPassenger()
++            && this.canPlayerFitWithinBlocksAndEntitiesWhen(jankyDesired)) {
++            this.setPose(jankyDesired);
++            return;
++        }
++        // Janky Paper end - one collision check in the common case
+         if (this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.SWIMMING)) {
+             Pose desiredPose = this.getDesiredPose();
+             Pose actualPose;
 @@ -501,7 +_,7 @@
                  pickupArea = this.getBoundingBox().inflate(1.0, 0.5, 1.0);
              }
