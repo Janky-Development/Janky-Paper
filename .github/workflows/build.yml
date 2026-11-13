@@ -5,6 +5,12 @@ on:
     branches: [ "**" ]
   pull_request:
 
+# A new push to a branch cancels that branch's older run: saves Actions minutes, and the ci-builds jar of a version
+# is always from the branch's newest commit (the Release workflow relies on that).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # Only run on PRs if the source branch is on someone else's repo
@@ -50,15 +56,16 @@ jobs:
         run: |
           set -euo pipefail
           jar=$(ls janky-paper-server/build/libs/jankypaper-paperclip-*.jar | grep -v -- '-reobf\.jar$' | head -n 1)
-          name="janky-paper-$MINECRAFT-$GITHUB_SHA.jar"
+          name="janky-paper-$MINECRAFT.jar"
           cp "$jar" "$RUNNER_TEMP/$name"
           gh release view ci-builds >/dev/null 2>&1 || gh release create ci-builds --prerelease --latest=false \
             --target "${{ github.event.repository.default_branch }}" --title "Development builds (CI)" \
-            --notes "The newest server jar CI built for each Minecraft version branch: untested in game and not a release. The Release workflow publishes the real releases from here. File names are janky-paper-<minecraft version>-<commit>.jar." \
+            --notes "The newest server jar CI built for each Minecraft version branch: untested in game and not a release. The real releases are the 'Janky Paper <number>' releases; the Release workflow publishes them from here." \
             || gh release view ci-builds >/dev/null # another branch's CI created it at the same moment
+          # replaces this version's previous jar (same name)
           gh release upload ci-builds "$RUNNER_TEMP/$name" --clobber
-          # keep only the newest jar of this Minecraft version
+          # remove jars named by the earlier janky-paper-<version>-<commit>.jar scheme
           gh release view ci-builds --json assets -q '.assets[].name' > "$RUNNER_TEMP/assets.txt"
-          for old in $(grep -E "^janky-paper-${MINECRAFT//./\\.}-[0-9a-f]{40}\.jar$" "$RUNNER_TEMP/assets.txt" | grep -vxF "$name" || true); do
+          for old in $(grep -E "^janky-paper-${MINECRAFT//./\\.}-[0-9a-f]{40}\.jar$" "$RUNNER_TEMP/assets.txt" || true); do
             gh release delete-asset ci-builds "$old" --yes
           done

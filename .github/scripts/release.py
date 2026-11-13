@@ -3,8 +3,9 @@
 
 Every Minecraft version in versions.txt is built from its own branch. CI ("Patch and Build", build.yml) builds and
 tests each push and uploads that branch's server jar to the "ci-builds" pre-release as
-janky-paper-<minecraft version>-<commit>.jar (release assets, unlike Actions artifacts, don't count against the
-Actions storage quota). This script works out what the next release holds and publishes it:
+janky-paper-<minecraft version>.jar (release assets, unlike Actions artifacts, don't count against the Actions
+storage quota). A newer push to a branch cancels its older CI run, so a jar uploaded after the CI run of the branch's
+newest commit started is that commit's jar. This script works out what the next release holds and publishes it:
 
 * First release, or releaseVersion in main's gradle.properties raised above the last release (1.0 -> 1.1, 2.0):
   a full release with exactly that number and a jar for every Minecraft version. A version whose code did not
@@ -122,24 +123,26 @@ def code_changed(old, new):
 
 
 def successful_ci_run(sha):
+    """(run id, start time) of a successful CI run of this commit, or None."""
     result = gh("api", f"repos/{REPO}/actions/workflows/{CI_WORKFLOW}/runs?head_sha={sha}&status=success&event=push&per_page=1",
                 check=False)
     if result.returncode != 0:
         return None
     runs = json.loads(result.stdout or "{}").get("workflow_runs", [])
-    return runs[0]["id"] if runs else None
+    return (runs[0]["id"], runs[0].get("run_started_at") or runs[0].get("created_at") or "") if runs else None
 
 
 def ci_jars():
-    """Names of the jars on the ci-builds pre-release (empty when it does not exist yet)."""
+    """Jars on the ci-builds pre-release: name -> upload time (empty when it does not exist yet)."""
     result = gh("release", "view", CI_BUILDS, "--repo", REPO, "--json", "assets", check=False)
     if result.returncode != 0:
-        return set()
-    return {asset["name"] for asset in json.loads(result.stdout or "{}").get("assets", [])}
+        return {}
+    return {asset["name"]: max(asset.get("createdAt") or "", asset.get("updatedAt") or "")
+            for asset in json.loads(result.stdout or "{}").get("assets", [])}
 
 
-def ci_jar_name(mc, sha):
-    return f"janky-paper-{mc}-{sha}.jar"
+def ci_jar_name(mc):
+    return f"janky-paper-{mc}.jar"
 
 
 def asset_name(mc, version):
@@ -184,12 +187,14 @@ def main():
             continue
         if old is None or code_changed(old["commit"], sha):
             ci_run = successful_ci_run(sha)
-            if ci_run is None or ci_jar_name(mc, sha) not in available:
-                problem = "has no successful CI run yet" if ci_run is None else "has no CI jar on the ci-builds pre-release"
+            uploaded = available.get(ci_jar_name(mc))
+            if ci_run is None or uploaded is None or uploaded < ci_run[1]:
+                problem = ("has no successful CI run yet" if ci_run is None
+                           else "has no jar from its CI run on the ci-builds pre-release")
                 message = f"{mc}: `{branch}` @ {sha[:7]} {problem}"
                 (waiting if full else skipped).append(message)
                 continue
-            plan.append(dict(mc=mc, branch=branch, commit=sha, source="ci", run=ci_run))
+            plan.append(dict(mc=mc, branch=branch, commit=sha, source="ci", run=ci_run[0]))
         elif full:
             plan.append(dict(mc=mc, branch=old["branch"], commit=old["commit"], source="release", release=old["release"], asset=old["asset"]))
 
@@ -229,7 +234,7 @@ def main():
         download = WORK / "download" / line["mc"]
         shutil.rmtree(download, ignore_errors=True)
         if line["source"] == "ci":
-            name = ci_jar_name(line["mc"], line["commit"])
+            name = ci_jar_name(line["mc"])
             gh("release", "download", CI_BUILDS, "--repo", REPO, "--pattern", name, "--dir", str(download))
             found = [download / name]
         else:
