@@ -28,7 +28,7 @@ concurrency:
 
 permissions:
   contents: write # create releases and tags
-  actions: read   # find CI runs and download their jars
+  actions: read   # check that CI passed for the commits being released
 
 jobs:
   release:

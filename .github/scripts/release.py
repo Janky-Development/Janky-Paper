@@ -2,8 +2,9 @@
 """Janky Paper - publishes the server jars as a GitHub release (run by .github/workflows/release.yml).
 
 Every Minecraft version in versions.txt is built from its own branch. CI ("Patch and Build", build.yml) builds and
-tests each push and uploads that branch's server jar as the artifact janky-paper-<minecraft version>. This script
-works out what the next release holds and publishes it:
+tests each push and uploads that branch's server jar to the "ci-builds" pre-release as
+janky-paper-<minecraft version>-<commit>.jar (release assets, unlike Actions artifacts, don't count against the
+Actions storage quota). This script works out what the next release holds and publishes it:
 
 * First release, or releaseVersion in main's gradle.properties raised above the last release (1.0 -> 1.1, 2.0):
   a full release with exactly that number and a jar for every Minecraft version. A version whose code did not
@@ -39,6 +40,7 @@ FULL_REQUESTED = os.environ.get("FULL_RELEASE", "").lower() == "true"
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 WORK = Path(os.environ.get("RUNNER_TEMP") or tempfile.gettempdir()) / "janky-release"
 MANIFEST = "release-manifest.json"
+CI_BUILDS = "ci-builds"  # pre-release CI uploads every branch's newest jar to (build.yml)
 SERVER = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
 
 # Files whose changes never change a server jar.
@@ -91,10 +93,12 @@ def declared_version():
 
 def previous_release():
     """The newest release that has a manifest: (manifest dict or None, set of every existing tag)."""
-    listing = gh("release", "list", "--repo", REPO, "--limit", "200", "--json", "tagName,createdAt").stdout.strip()
+    listing = gh("release", "list", "--repo", REPO, "--limit", "200", "--json", "tagName,createdAt,isDraft,isPrerelease").stdout.strip()
     releases = sorted(json.loads(listing or "[]"), key=lambda r: r["createdAt"], reverse=True)
     tags = {r["tagName"] for r in releases}
     for release in releases:
+        if release.get("isDraft") or release.get("isPrerelease"):
+            continue  # ci-builds and anything made by hand
         target = WORK / "previous" / release["tagName"]
         got = gh("release", "download", release["tagName"], "--repo", REPO, "--pattern", MANIFEST,
                  "--dir", str(target), "--clobber", check=False)
@@ -126,6 +130,18 @@ def successful_ci_run(sha):
     return runs[0]["id"] if runs else None
 
 
+def ci_jars():
+    """Names of the jars on the ci-builds pre-release (empty when it does not exist yet)."""
+    result = gh("release", "view", CI_BUILDS, "--repo", REPO, "--json", "assets", check=False)
+    if result.returncode != 0:
+        return set()
+    return {asset["name"] for asset in json.loads(result.stdout or "{}").get("assets", [])}
+
+
+def ci_jar_name(mc, sha):
+    return f"janky-paper-{mc}-{sha}.jar"
+
+
 def asset_name(mc, version):
     return f"janky-paper-{mc}-{version}.jar"
 
@@ -154,6 +170,7 @@ def main():
     log(f"Last release: {previous_version or 'none'} - next: {version} ({'every version' if full else 'changed versions'}; {reason})")
 
     plan, waiting, skipped = [], [], []
+    available = ci_jars()
     for mc, branch in versions:
         sha = branch_head(branch)
         old = previous_lines.get(mc)
@@ -167,8 +184,9 @@ def main():
             continue
         if old is None or code_changed(old["commit"], sha):
             ci_run = successful_ci_run(sha)
-            if ci_run is None:
-                message = f"{mc}: `{branch}` @ {sha[:7]} has no successful CI run yet"
+            if ci_run is None or ci_jar_name(mc, sha) not in available:
+                problem = "has no successful CI run yet" if ci_run is None else "has no CI jar on the ci-builds pre-release"
+                message = f"{mc}: `{branch}` @ {sha[:7]} {problem}"
                 (waiting if full else skipped).append(message)
                 continue
             plan.append(dict(mc=mc, branch=branch, commit=sha, source="ci", run=ci_run))
@@ -211,9 +229,9 @@ def main():
         download = WORK / "download" / line["mc"]
         shutil.rmtree(download, ignore_errors=True)
         if line["source"] == "ci":
-            gh("run", "download", str(line["run"]), "--repo", REPO, "--name", f"janky-paper-{line['mc']}", "--dir", str(download))
-            found = sorted((f for f in download.glob("jankypaper-paperclip-*.jar") if not f.name.endswith("-reobf.jar")),
-                           key=lambda f: f.stat().st_mtime)
+            name = ci_jar_name(line["mc"], line["commit"])
+            gh("release", "download", CI_BUILDS, "--repo", REPO, "--pattern", name, "--dir", str(download))
+            found = [download / name]
         else:
             gh("release", "download", f"v{line['release']}", "--repo", REPO, "--pattern", line["asset"], "--dir", str(download))
             found = [download / line["asset"]]

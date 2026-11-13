@@ -210,7 +210,9 @@ build script into place, apply the change by hand, and run `./gradlew rebuildPap
 Releases are built and published by GitHub Actions; there's nothing to run by hand:
 
 1. Every push to `main` or a `ver/*` branch runs CI (**Patch and Build**, `.github/workflows/build.yml`). CI
-   applies the patches, builds, runs the tests, and uploads that branch's server jar.
+   applies the patches, builds, runs the tests, and uploads that branch's server jar to the **Development
+   builds (CI)** pre-release (tag `ci-builds`). That pre-release always holds the newest tested jar of each
+   version, for anyone who wants to try changes before a release.
 2. When CI passes, the **Release** workflow (`.github/workflows/release.yml`, logic in
    `.github/scripts/release.py`) decides whether there's something new to publish, and publishes it.
 
@@ -236,6 +238,10 @@ What goes into a release:
   `releaseVersion`; **dry run** only shows the plan.
 * **Version branches:** `release.yml` only needs to be on `main`, because GitHub runs it from the default
   branch. Each `ver/*` branch needs the CI workflow that uploads its jar, and already has it.
+* **Free-plan limits (private repository):** jars are kept as release files, not Actions artifacts, because
+  artifacts count against the 0.5 GB Actions storage shared by the whole organization. CI minutes still count:
+  one CI run is about 15 minutes, so a push of all five branches uses about 75. In a public repository,
+  Actions minutes and storage are free.
 
 To publish the first release (1.0), push `main` and every version branch:
 
