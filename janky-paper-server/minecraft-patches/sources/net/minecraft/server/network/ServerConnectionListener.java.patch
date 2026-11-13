@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/network/ServerConnectionListener.java
 +++ b/net/minecraft/server/network/ServerConnectionListener.java
-@@ -72,8 +_,8 @@
+@@ -81,8 +_,8 @@
              }
              // Paper end - Warn people with console access that HAProxy is in use.
              // Paper start - Use Velocity cipher
@@ -11,7 +11,7 @@
              // Paper end - Use Velocity cipher
              this.channels
                  .add(
-@@ -296,11 +_,13 @@
+@@ -327,11 +_,13 @@
          synchronized (this.connections) {
              // Paper start - Add maximum time to wait for channels to close
              for (final Connection connection : this.connections) {

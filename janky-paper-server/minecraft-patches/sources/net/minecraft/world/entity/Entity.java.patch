@@ -1,7 +1,7 @@
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -1166,7 +_,7 @@
- 
+@@ -1139,7 +_,7 @@
+     public void move(final MoverType moverType, Vec3 delta) {
          final Vec3 originalMovement = delta; // Paper - Expose pre-collision velocity
          // Paper start - detailed watchdog information
 -        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread("Cannot move an entity off-main");
@@ -9,7 +9,7 @@
          synchronized (this.posLock) {
              this.moveStartX = this.getX();
              this.moveStartY = this.getY();
-@@ -1426,6 +_,8 @@
+@@ -1388,6 +_,8 @@
              this.finalMovementsThisTick.add(new Entity.Movement(this.finalMovementsThisTick.getLast().to, this.position()));
          }
  
@@ -18,7 +18,7 @@
          this.applyEffectsFromBlocks(this.finalMovementsThisTick);
      }
  
-@@ -1463,8 +_,10 @@
+@@ -1425,8 +_,10 @@
      }
  
      private void applyEffectsFromBlocks(final List<Entity.Movement> movements) {
@@ -30,7 +30,7 @@
                  BlockPos effectPos = this.getOnPosLegacy();
                  BlockState effectState = this.level().getBlockState(effectPos);
                  effectState.getBlock().stepOn(this.level(), effectPos, effectState, this);
-@@ -1473,8 +_,10 @@
+@@ -1435,8 +_,10 @@
              boolean wasOnFire = this.isOnFire();
              boolean wasFreezing = this.isFreezing();
              int previousRemainingFireTicks = this.getRemainingFireTicks();
@@ -43,7 +43,7 @@
              if (this.isInRain()) {
                  this.clearFire();
              }
-@@ -1494,6 +_,88 @@
+@@ -1456,6 +_,88 @@
          return !this.isRemoved() && !this.noPhysics;
      }
  
@@ -132,7 +132,7 @@
      private boolean isStateClimbable(final BlockState state) {
          return state.is(BlockTags.CLIMBABLE) || state.is(Blocks.POWDER_SNOW);
      }
-@@ -5197,16 +_,7 @@
+@@ -5062,16 +_,7 @@
                  }
              }
  
@@ -148,9 +148,9 @@
 -            }
 +            if (this instanceof ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.EXECUTING) jankyBot.jankyMovedOffThread = true; else jankyMoveCallbacks(x, y, z); // Janky Paper - parallel bot movement - shared structures are updated on the main thread afterwards
              // Paper start - Fix MC-44654
-             if (!this.getType().hasUpdateInterval()) {
+             if (this.getType().updateInterval() == Integer.MAX_VALUE) {
                  this.needsSync = true;
-@@ -5220,6 +_,28 @@
+@@ -5085,6 +_,28 @@
          }
          // Paper end - Block invalid positions and bounding box
      }

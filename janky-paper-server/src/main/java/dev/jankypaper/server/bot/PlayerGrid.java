@@ -5,13 +5,10 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.component.MobVisibility;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -339,14 +336,7 @@ public final class PlayerGrid {
     }
 
     private static double visibilityBoost(final ServerPlayer player) {
-        double boost = 1.0;
-        for (final EquipmentSlot slot : EquipmentSlot.VALUES) {
-            final MobVisibility visibility = player.getItemBySlot(slot).get(DataComponents.MOB_VISIBILITY);
-            if (visibility != null && visibility.visibility() > 1.0F) {
-                boost *= visibility.visibility();
-            }
-        }
-        return boost;
+        return 1.0; // before 26.3 (no mob_visibility item component) nothing raises a player's visibility above 100%
     }
 
     /**
