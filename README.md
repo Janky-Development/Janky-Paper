@@ -1,5 +1,9 @@
 # Janky Paper
 
+**Created and owned by [Pepe-tf](https://github.com/Pepe-tf) · code and contributions by
+[CamerG1011](https://github.com/CamerG1011)** · built on [Paper](https://papermc.io) by the PaperMC team and
+contributors ([Credits](#credits))
+
 Janky Paper is a fork of [PaperMC/Paper](https://github.com/PaperMC/Paper) for **recording and
 content-creation servers**. It is tuned for two jobs that stock Paper handles poorly:
 
@@ -21,6 +25,7 @@ Paper's changes are patches on top of it.
 | Based on Paper | commit `77c0866f5f60a74f475e94612a391b22df5cefe3` (`paperRef`, Paper 26.1.1 build 29) |
 | Channel | ALPHA |
 | Java | 25 (Gradle auto-provisions a JDK 25 for the dev server) |
+| License | [GPL-3.0](LICENSE) with additional terms - you may fork and change it; see [NOTICE.md](NOTICE.md) |
 
 ---
 
@@ -731,3 +736,24 @@ moves. `AGENTS.md` has the full set of repository notes.
 
 Set `paperRef` in `gradle.properties` to the new Paper commit, run `./gradlew applyAllPatches`,
 fix any patch conflicts (see `*.rej` files), rebuild patches, commit.
+
+---
+
+## Credits
+
+- **[Pepe-tf](https://github.com/Pepe-tf)** - original creator and owner of Janky Paper
+- **[CamerG1011](https://github.com/CamerG1011)** - coder and contributor
+- **[Paper](https://papermc.io)** - the PaperMC team and
+  [Paper's contributors](https://github.com/PaperMC/Paper/graphs/contributors). Janky Paper is a fork of Paper,
+  and almost all of the server is their work; Janky Paper only adds its changes on top. Please consider
+  [supporting Paper](https://papermc.io).
+- **Spigot, CraftBukkit and Bukkit** - the projects Paper builds on, and their contributors
+- **Minecraft** by Mojang Studios
+
+More in [CREDITS.md](CREDITS.md).
+
+**Every fork, clone, copy and modified version of Janky Paper must keep this credit:** Pepe-tf as the
+original creator and owner, CamerG1011 as a coder and contributor, and Paper as the project it is built on.
+That covers this section, [CREDITS.md](CREDITS.md), the credit headers in the source files and the credit
+lines the server prints at startup. It's a condition of the license (GPL-3.0 with the additional terms in
+[NOTICE.md](NOTICE.md)).
