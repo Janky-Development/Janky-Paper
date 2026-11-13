@@ -29,3 +29,18 @@ jobs:
         run: ./gradlew applyAllPatches --stacktrace
       - name: Build
         run: ./gradlew build --stacktrace
+      # The server jar of this branch's Minecraft version; the Release workflow (main) publishes it from here
+      - name: Create Paperclip Jar
+        run: ./gradlew createPaperclipJar --stacktrace
+      - name: Read Minecraft Version
+        id: minecraft
+        run: echo "version=$(sed -n 's/^mcVersion=//p' gradle.properties | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+      - name: Upload Paperclip Jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: janky-paper-${{ steps.minecraft.outputs.version }}
+          path: |
+            janky-paper-server/build/libs/jankypaper-paperclip-*.jar
+            !janky-paper-server/build/libs/*-reobf.jar
+          if-no-files-found: error
+          retention-days: 30
