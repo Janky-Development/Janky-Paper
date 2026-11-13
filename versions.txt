@@ -1,0 +1,13 @@
+# Janky Paper - every supported Minecraft version and the branch it is built from, newest first.
+# Read by the "janky versions" Gradle tasks (build.gradle.kts) and the release workflow
+# (.github/workflows/release.yml, .github/scripts/release.py).
+#
+# Minecraft 26.1 has no line of its own: 26.1, 26.1.1 and 26.1.2 share protocol 775, so 26.1 clients join
+# the 26.1.x jars.
+#
+# <minecraft version>  <branch>
+26.3     main
+26.2     ver/26.2
+26.1.2   ver/26.1.2
+26.1.1   ver/26.1.1
+1.21.11  ver/1.21.11

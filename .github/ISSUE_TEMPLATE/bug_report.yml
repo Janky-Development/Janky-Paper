@@ -1,0 +1,67 @@
+name: Bug report
+description: Something is broken, crashes, or behaves differently than on Paper
+labels: [ "bug" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check first that it does **not** also happen on plain [Paper](https://papermc.io/downloads/paper) with the same plugins - if it does, report it to [Paper](https://github.com/PaperMC/Paper/issues).
+        Security problems: please use [private reporting](https://github.com/Pepe-tf/Janky-Paper/security/advisories/new) instead.
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options: [ "26.3", "26.2", "26.1.2", "26.1.1", "1.21.11" ]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Janky Paper version
+      description: Output of `/version`, or the release / jar name (e.g. `janky-paper-26.3-1.0.2.jar`)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps from a fresh server if possible - bot count, commands, config changes
+      placeholder: |
+        1. Spawn 2000 bots with FPP at spawn
+        2. Run /focus ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / crash report
+      description: The relevant part of `logs/latest.log` or the crash report. For long logs, use a paste site (https://mclo.gs) and link it.
+      render: text
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Plugins
+      description: Output of `/plugins`, with versions of bot plugins (e.g. FPP)
+  - type: textarea
+    id: config
+    attributes:
+      label: config/janky-paper.yml
+      description: Only the parts you changed
+      render: yaml
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I'm on the newest Janky Paper release for my Minecraft version
+          required: true
+        - label: It does not happen on plain Paper with the same plugins (or I couldn't test that)
+          required: true

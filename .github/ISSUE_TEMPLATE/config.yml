@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/Pepe-tf/Janky-Paper/security/advisories/new
+    about: Report vulnerabilities privately - not in a public issue.
+  - name: Problem that also happens on plain Paper
+    url: https://github.com/PaperMC/Paper/issues
+    about: Bugs that are not specific to Janky Paper belong to Paper.

@@ -1,0 +1,23 @@
+name: Feature request
+description: An idea for Janky Paper - recording, bots, focus mode, performance
+labels: [ "enhancement" ]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: The situation or problem this would solve (for example what you are trying to record)
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How it could work - config keys, commands, behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Plugins or workarounds you tried

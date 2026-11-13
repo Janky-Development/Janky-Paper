@@ -24,8 +24,16 @@
  dependencies {
      implementation("com.puppycrawl.tools:checkstyle:14.3.0")
      implementation("org.jspecify:jspecify:1.0.0")
-@@ -16,11 +_,12 @@
-     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+@@ -12,15 +_,18 @@
+     testCompileOnly("org.jetbrains:annotations:26.1.0")
+     testImplementation(testData.output)
+ 
+-    testImplementation("org.junit.jupiter:junit-jupiter:5.13.3")
+-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
++    // Janky Paper - same JUnit as janky-paper-api / janky-paper-server: an IDE run across modules puts every module's test
++    // jars on one classpath, and JUnit refuses to start with 5.x and 6.x jars mixed
++    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
++    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
      testData.implementationConfigurationName("org.jspecify:jspecify:1.0.0")
  
 -    checkstyle(project(":paper-checkstyle"))

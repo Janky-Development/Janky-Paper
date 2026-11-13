@@ -1,0 +1,52 @@
+name: Release
+
+# Publishes the server jars as GitHub releases (logic and rules: .github/scripts/release.py).
+#
+# Runs after CI ("Patch and Build") succeeds for a push to main or a ver/* branch - so only tested commits are
+# released - or by hand from the Actions tab. GitHub runs workflow_run workflows from the default branch, so this
+# file only needs to exist on main; every version branch just needs the CI workflow that uploads its jar.
+on:
+  workflow_run:
+    workflows: [ "Patch and Build" ]
+    types: [ completed ]
+    branches: [ main, "ver/**" ]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Ship every Minecraft version, even the unchanged ones (without raising releaseVersion)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Only show what would be released"
+        type: boolean
+        default: false
+
+# One release at a time; pushes that land meanwhile are picked up by the queued run.
+concurrency:
+  group: janky-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create releases and tags
+  actions: read   # find CI runs and download their jars
+
+jobs:
+  release:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Git Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0 # every branch and its history: which versions changed since their last release
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FULL_RELEASE: ${{ inputs.full }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python .github/scripts/release.py

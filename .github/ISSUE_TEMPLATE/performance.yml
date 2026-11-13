@@ -1,0 +1,48 @@
+name: Performance problem
+description: Low TPS, lag spikes or high CPU/memory - for example with many bots
+labels: [ "performance" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A [spark](https://spark.lucko.me) profile makes performance problems much easier to fix: run `/spark profiler start`, wait while the lag happens (1-2 minutes), then `/spark profiler stop` and paste the link below.
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options: [ "26.3", "26.2", "26.1.2", "26.1.1", "1.21.11" ]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Janky Paper version
+      description: Output of `/version`, or the release / jar name
+    validations:
+      required: true
+  - type: input
+    id: spark
+    attributes:
+      label: spark profile link
+    validations:
+      required: true
+  - type: textarea
+    id: situation
+    attributes:
+      label: What is going on
+      description: Bot count and how they are spread (one area / spread out), what they do (idle, walking, fighting), real players online, TPS / MSPT you see
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware and start command
+      description: CPU (cores/threads), RAM, `-Xmx`, and the java command / panel flags you start the server with
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: config/janky-paper.yml
+      description: Only the parts you changed
+      render: yaml

@@ -1,3 +1,8 @@
+/*
+ * Janky Paper - created and owned by Pepe-tf (https://github.com/Pepe-tf),
+ * code by CamerG1011 (https://github.com/CamerG1011) and the Janky Paper contributors.
+ * GNU GPL v3 with additional terms (LICENSE, NOTICE.md): every copy and fork must keep this credit.
+ */
 package dev.jankypaper.server.log;
 
 import io.papermc.paper.ServerBuildInfo;
@@ -16,6 +21,12 @@ public final class ServerBanners {
 
     private static final int MAX_LISTED_NAMES = 6;
 
+    /**
+     * Who made Janky Paper - printed at every start. Every copy and fork must keep this credit unchanged
+     * (NOTICE.md, additional term 3 under GPL-3.0 section 7(b)); add your own names next to it.
+     */
+    public static final String CREDITS = "created and owned by Pepe-tf, code by CamerG1011 - https://github.com/Pepe-tf/Janky-Paper";
+
     private ServerBanners() {
     }
 
@@ -25,6 +36,7 @@ public final class ServerBanners {
         JankyLog.boldRule();
         JankyLog.title(JankyLog.NAME, "v" + bi.asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE));
         JankyLog.tagline("a jankier Paper - built on PaperMC/Paper for Minecraft " + bi.minecraftVersionId());
+        JankyLog.tagline(CREDITS);
         JankyLog.rule();
         JankyLog.section("Environment");
         JankyLog.kv("Java", System.getProperty("java.specification.version")
@@ -45,6 +57,7 @@ public final class ServerBanners {
         JankyLog.boldRule();
         JankyLog.title(JankyLog.NAME, "v" + bi.asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE)
             + JankyLog.MUTED + "  -  Minecraft " + bi.minecraftVersionId());
+        JankyLog.tagline(CREDITS);
         JankyLog.rule();
 
         JankyLog.section("Network");

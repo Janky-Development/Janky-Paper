@@ -1,5 +1,9 @@
 # Janky Paper
 
+**Created and owned by [Pepe-tf](https://github.com/Pepe-tf) · code and contributions by
+[CamerG1011](https://github.com/CamerG1011)** · built on [Paper](https://papermc.io) by the PaperMC team and
+contributors ([Credits](#credits))
+
 Janky Paper is a fork of [PaperMC/Paper](https://github.com/PaperMC/Paper) for **recording and
 content-creation servers**. It is tuned for two jobs that stock Paper handles poorly:
 
@@ -17,10 +21,11 @@ Paper's changes are patches on top of it.
 
 | | |
 |---|---|
-| Minecraft | **26.3** (`mcVersion` in `gradle.properties`) |
+| Minecraft | **26.3** on `main` (`mcVersion` in `gradle.properties`) - also **26.2, 26.1.2, 26.1.1 and 1.21.11**, each on its own `ver/<version>` branch; 26.1 clients join the 26.1.x jars ([Minecraft versions](#minecraft-versions)) |
 | Based on Paper | commit `7e88a0da385c201f00011ce5eef1834d391e4023` (`paperRef`) |
 | Channel | ALPHA |
 | Java | 25 (Gradle auto-provisions a JetBrains JDK 25 for the dev server) |
+| License | [GPL-3.0](LICENSE) with additional terms - you may fork and change it; see [NOTICE.md](NOTICE.md) and [License](#license) |
 
 ---
 
@@ -28,6 +33,8 @@ Paper's changes are patches on top of it.
 
 - [Feature overview](#feature-overview)
 - [Running a Janky Paper server](#running-a-janky-paper-server)
+- [Minecraft versions](#minecraft-versions)
+- [Releases](#releases)
 - [Configuration reference (`config/janky-paper.yml`)](#configuration-reference-configjanky-paperyml)
 - [Commands and permissions](#commands-and-permissions)
 - [Lightweight bots](#lightweight-bots)
@@ -41,6 +48,8 @@ Paper's changes are patches on top of it.
 - [Troubleshooting](#troubleshooting)
 - [Console and log style](#console-and-log-style)
 - [Developing Janky Paper](#developing-janky-paper)
+- [Credits](#credits)
+- [License](#license)
 
 ---
 
@@ -63,7 +72,9 @@ Paper's changes are patches on top of it.
 
 ### Getting the jar
 
-There are no published downloads yet - build it (see [Developing Janky Paper](#developing-janky-paper)):
+Download it from the [GitHub releases](https://github.com/Pepe-tf/Janky-Paper/releases). There's a
+`janky-paper-<minecraft version>-<release>.jar` for every supported Minecraft version (see
+[Releases](#releases)). Or build it yourself (see [Developing Janky Paper](#developing-janky-paper)):
 
 ```bash
 ./gradlew applyAllPatches
@@ -72,7 +83,8 @@ There are no published downloads yet - build it (see [Developing Janky Paper](#d
 
 The server jar is `janky-paper-server/build/libs/jankypaper-paperclip-<version>.jar`. It is a Paperclip
 jar like Paper's: on first start it downloads the vanilla server, patches it and caches it under
-`cache/` and `libraries/`.
+`cache/` and `libraries/`. That builds 26.3; for another Minecraft version, or all of them at once, see
+[Minecraft versions](#minecraft-versions).
 
 ### Starting it
 
@@ -107,6 +119,131 @@ Measured on the dev server with everything here enabled, live heap after GC was 
 your worlds and plugins need, and give the JVM headroom for G1 (`-Xmx` well above the live heap). The
 biggest per-bot memory costs that Paper normally has (advancement progress, locator-bar connections,
 nearby-player arrays) are removed for bots - see [Lightweight bots](#lightweight-bots).
+
+---
+
+## Minecraft versions
+
+Like Paper, each Janky Paper jar runs exactly one Minecraft version, so use the jar that matches the version
+your players are on. Every version has the same features, config file and commands. Each version lives on
+its own branch, the way Paper keeps its older versions on `ver/*` branches:
+
+| Minecraft | Branch | Based on Paper | Java |
+|---|---|---|---|
+| 26.3 | `main` | `7e88a0da` (26.3 build 237) | 25 |
+| 26.2 | `ver/26.2` | `e4d6dfd1` (26.2 build 135) | 25 |
+| 26.1.2 | `ver/26.1.2` | `e4e17fc9` (26.1.2 build 74) | 25 |
+| 26.1.1 | `ver/26.1.1` | `77c0866f` (26.1.1 build 29) | 25 |
+| 1.21.11 | `ver/1.21.11` | `c5eb0790` (1.21.11 build 132) | 21 |
+
+**Minecraft 26.1** has no jar of its own. 26.1, 26.1.1 and 26.1.2 all use network protocol 775, so 26.1
+clients join the 26.1.2 (or 26.1.1) jar directly, which is also how Paper handled it. Paper never released a
+26.1 build: its 26.1 code still had features unapplied (Anti-Xray, per-player mob spawns, hopper
+optimizations, ...), and Mojang's 26.1.1 hotfix changed code that Paper's finished patches depend on. A
+world opened on 26.1.2 is upgraded and can't go back to a 26.1 server.
+
+### Building every version
+
+From `main`, everything is in the **janky versions** task group. In IntelliJ that's the Gradle tool window
+under janky-paper → Tasks → janky versions; double-click a task to run it. From a terminal:
+
+```bash
+./gradlew buildJar-26.2        # one version's server jar -> dist/
+./gradlew buildAllJars         # every version, one after another -> dist/
+./gradlew listVersions         # versions, branches and where each is checked out
+```
+
+| Task | What it does |
+|---|---|
+| `buildJar-<version>` | Builds that version's server jar and copies it into `dist/` (replacing older builds of the same version) |
+| `buildAllJars` | `buildJar-<version>` for every version, one at a time |
+| `applyPatches-<version>` | Only applies that version's patches, e.g. before opening its worktree in the IDE |
+| `setupVersionWorktrees` | Creates the worktree of every older version that doesn't have one yet |
+| `listVersions` | Prints each version, its branch and its checkout |
+
+`buildJar-26.3` builds this checkout as it is (run `applyPatches-26.3`, i.e. `applyAllPatches`, after
+changing patches). Every older version builds in a git worktree of its `ver/*` branch using that branch's own
+Gradle wrapper (run on a JDK 21 toolchain, without a daemon). Those builds apply patches before building
+the jar. If that worktree's generated sources (`paper-server/`, `paper-api/`, the Minecraft sources) have
+uncommitted edits, the build stops instead of throwing them away.
+
+A worktree that `git worktree list` already knows is reused. Missing ones are created under
+`-PjankyVersionsDir=...` (or `JANKY_VERSIONS_DIR`, default `Janky-Paper-versions/` next to this
+repository). Each takes 2-3 GB of decompiled Minecraft and Paper sources, so put them on a drive with room.
+`build-all-versions.sh` / `build-all-versions.bat` are shortcuts: no arguments runs `buildAllJars`, and
+versions as arguments run their `buildJar-<version>` tasks.
+
+To work on an older version itself (port a change, run its dev server), open its worktree folder as its own
+project in the IDE. It has the normal Janky Paper tasks for that version.
+
+### What differs between versions
+
+Only the internals that Minecraft or Paper changed between versions:
+
+* **1.21.11** runs on Java 21 and uses Paper's Spigot-mapping setup. `createPaperclipJar` builds the
+  Mojang-mapped jar (what Paper ships), and `createReobfPaperclipJar` builds the Spigot-mapped one.
+* **26.1.2 and older** have no `janky-paper-checkstyle` module, because Paper only added checkstyle in 26.2.
+* **26.2 and older** don't have the `mob_visibility` item component, so the player grid's equipment
+  visibility boost is always 1, which matches vanilla on those versions. Two console-noise tweaks (the FMA CPU-flag
+  line and the services `Environment:` line) are absent because those versions never print those lines.
+* On **26.1.2 and 26.1.1**, the guard for a dimension folder missing its world-gen-settings file lives in
+  `PaperWorldLoader#loadInitialWorld`. Paper only added the per-dimension check in 26.2. Before 26.1 (so on
+  1.21.11), every world keeps its world-gen settings in its own `level.dat`, so the guard isn't needed.
+* **26.1.1** has no `ServerConnectionListener#handleAllDisconnections` (Paper added it in 26.1.2), so the
+  shutdown guard for a connection without a channel isn't there either.
+* On **1.21.11**, Paper has no cached locator-bar flag yet, so bots are kept off the locator bar in the
+  per-player check instead. `ChunkPos` uses `x`/`z` fields there instead of record accessors.
+
+### Keeping the versions in sync
+
+A change lands on `main` first. Then cherry-pick it onto each `ver/*` branch, newest to oldest, and in each
+worktree run `./gradlew applyAllPatches`. If hunks fail, port them in the generated sources, run
+`fixupMinecraftSourcePatches` / `fixupPaperServerFilePatches` and then the matching `rebuild...` task
+(see [Making changes](#making-changes)), and commit. paperweight applies the `build.gradle.kts.patch` files
+strictly, so a hunk whose context lines differ fails even when its change still fits. Copy Paper's
+build script into place, apply the change by hand, and run `./gradlew rebuildPaperSingleFilePatches`.
+
+---
+
+## Releases
+
+Releases are built and published by GitHub Actions; there's nothing to run by hand:
+
+1. Every push to `main` or a `ver/*` branch runs CI (**Patch and Build**, `.github/workflows/build.yml`). CI
+   applies the patches, builds, runs the tests, and uploads that branch's server jar.
+2. When CI passes, the **Release** workflow (`.github/workflows/release.yml`, logic in
+   `.github/scripts/release.py`) decides whether there's something new to publish, and publishes it.
+
+What goes into a release:
+
+| Situation | Release number | Jars in the release |
+|---|---|---|
+| First release | `releaseVersion` from `main`'s `gradle.properties` (**1.0**) | Every Minecraft version |
+| You raised `releaseVersion` on `main` (e.g. to `1.1` or `2.0`) | Exactly that number | Every Minecraft version |
+| Anything else | One patch up from the last release (`1.0` → `1.0.1` → `1.0.2`) | Only the Minecraft versions whose code changed since their last release |
+
+* **What counts as a change:** pushes that only touch docs or CI files (`*.md`, `LICENSE`, `.github/`,
+  `.editorconfig`, `versions.txt`, the build-all scripts) are ignored. Unchanged versions reuse their last jar in a full release, renamed to the
+  new number.
+* **CI gates every release:** a version is only released from a commit whose CI run succeeded. A full release
+  waits until every version is ready. A patch release ships the ready versions now, and the rest follow in the
+  next release once their CI passes.
+* **Release notes:** every release lists all versions with a link to each one's current jar, so a patch
+  release still points to the jars of the versions it didn't rebuild.
+* **`release-manifest.json`:** attached to each release, it records which commit and release every jar
+  came from. The next run compares against it.
+* **Manual runs:** run **Release** from the Actions tab. **full** ships every version without raising
+  `releaseVersion`; **dry run** only shows the plan.
+* **Version branches:** `release.yml` only needs to be on `main`, because GitHub runs it from the default
+  branch. Each `ver/*` branch needs the CI workflow that uploads its jar, and already has it.
+
+To publish the first release (1.0), push `main` and every version branch:
+
+```bash
+git push origin main ver/26.2 ver/26.1.2 ver/26.1.1 ver/1.21.11
+```
+
+1.0 appears once CI has passed on all five.
 
 ---
 
@@ -726,9 +863,60 @@ Code that doesn't need to touch Paper/Minecraft internals can go straight into
 Patch conventions (inherited from Paper): mark every change with `// Janky Paper - <why>` (or
 `// Janky Paper start/end - <why>` around blocks), use fully qualified names in patched files instead
 of new imports, and keep hunks as small as possible - every changed line is merge pain when `paperRef`
-moves. `AGENTS.md` has the full set of repository notes.
+moves. [CONTRIBUTING.md](CONTRIBUTING.md) has the full contributor guide.
 
 ### Updating upstream Paper
 
 Set `paperRef` in `gradle.properties` to the new Paper commit, run `./gradlew applyAllPatches`,
-fix any patch conflicts (see `*.rej` files), rebuild patches, commit.
+fix any patch conflicts (see `*.rej` files), rebuild patches, commit. Each `ver/*` branch pins its own
+`paperRef`, so update an older version on its own branch
+([Minecraft versions](#minecraft-versions)). When a new Minecraft version comes out, branch the current
+`main` off as `ver/<old version>` before moving `main` to the new one. Then add the new branch to
+`versions.txt` and to the Minecraft version list in the issue forms (`.github/ISSUE_TEMPLATE/`).
+
+Contributing guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md), and security reports go through
+[SECURITY.md](SECURITY.md).
+
+---
+
+## Credits
+
+- **[Pepe-tf](https://github.com/Pepe-tf)** - original creator and owner of Janky Paper
+- **[CamerG1011](https://github.com/CamerG1011)** - coder and contributor
+- **[Paper](https://papermc.io)** - the PaperMC team and
+  [Paper's contributors](https://github.com/PaperMC/Paper/graphs/contributors). Janky Paper is a fork of Paper,
+  and almost all of the server is their work (the game server patches, the plugin API, the chunk system, years
+  of performance and stability fixes). Janky Paper only adds its changes on top. Please consider
+  [supporting Paper](https://papermc.io).
+- **Spigot, CraftBukkit and Bukkit** - the projects Paper builds on, and their contributors
+- **[paperweight](https://github.com/PaperMC/paperweight)** - PaperMC's build tooling
+- **Minecraft** by Mojang Studios
+
+Everyone else who contributed to Janky Paper is in the Git history; see also [CREDITS.md](CREDITS.md).
+
+**Every fork, clone, copy and modified version of Janky Paper must keep this credit:** Pepe-tf as the
+original creator and owner, CamerG1011 as a coder and contributor, and Paper as the project it is built on.
+That covers this section, [CREDITS.md](CREDITS.md), the credit headers in the source files and the credit
+lines the server prints at startup. It's a condition of the license (term 3 in [NOTICE.md](NOTICE.md)).
+
+---
+
+## License
+
+Janky Paper is free software under the [GNU General Public License v3.0](LICENSE), the same license as Paper,
+Spigot and Bukkit, which it builds on. Copyright (C) 2026 Pepe-tf (creator and owner), CamerG1011 and the Janky
+Paper contributors.
+
+- **Allowed:** run it anywhere (commercial servers included), fork it, change it, and publish or sell your
+  own version.
+- **Required when you share your version:** keep the copyright notices, [NOTICE.md](NOTICE.md) and
+  [CREDITS.md](CREDITS.md), keep it under GPL-3.0, and give its users the full source code.
+- **Additional terms** ([NOTICE.md](NOTICE.md), allowed by GPL section 7):
+  - **Credit:** every copy and fork must keep crediting Pepe-tf as the original creator and owner and
+    CamerG1011 as a coder and contributor ([Credits](#credits)).
+  - **Name:** the name "Janky Paper" and its branding aren't licensed for forks. A modified version you
+    share needs its own name and must say it's based on Janky Paper.
+
+Janky Paper is not affiliated with Mojang Studios, Microsoft or PaperMC, and does not distribute Minecraft. The
+jar downloads the official server on first start, and running it means accepting the
+[Minecraft EULA](https://www.minecraft.net/eula).

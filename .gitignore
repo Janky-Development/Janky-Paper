@@ -20,3 +20,6 @@ build
 .idea/
 *.iml
 .vscode/
+
+# Jars collected by build-all-versions.sh
+/dist
