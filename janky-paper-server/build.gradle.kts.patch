@@ -8,9 +8,9 @@
  
  plugins {
      `java-library`
-@@ -22,6 +_,18 @@
-     minecraftVersion = providers.gradleProperty("mcVersion")
-     gitFilePatches = false
+@@ -40,6 +_,19 @@
+         "org.spigotmc",
+     )
  
 +    val fork = forks.register("jankypaper") {
 +        serverDirectory = rootDirectory.dir("janky-paper-server")
@@ -23,11 +23,12 @@
 +    }
 +
 +    activeFork = fork
++    reobfPackagesToFix.add("dev.jankypaper") // Janky Paper - our server code references NMS too (reobf jar)
 +
      updatingMinecraft {
-         //oldPaperCommit = "e5fe71723e2ffde7cc9fafc085ac3bb73e63175e"
+         // oldPaperCommit = "c82b438b5b4ea0b230439b8e690e34708cd11ab3"
      }
-@@ -86,7 +_,20 @@
+@@ -104,7 +_,20 @@
      }
  }
  
@@ -49,16 +50,16 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -109,7 +_,7 @@
+@@ -127,7 +_,7 @@
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":janky-paper-api"))
-     implementation(platform("ca.spottedleaf.leafpile:bom:1.3.2"))
-     implementation("ca.spottedleaf.leafpile:common")
-     implementation("ca.spottedleaf.leafpile:concurrentutil")
-@@ -166,22 +_,24 @@
+     implementation("ca.spottedleaf:concurrentutil:0.0.8")
+     implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
+     implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
+@@ -190,22 +_,24 @@
      manifest {
          val git = Git(rootProject.layout.projectDirectory.path)
          val mcVersion = rootProject.providers.gradleProperty("mcVersion").get()
@@ -90,8 +91,8 @@
              "Build-Number" to (build ?: ""),
              "Build-Time" to buildTime.toString(),
              "Git-Branch" to gitBranch,
-@@ -259,7 +_,7 @@
-     )
+@@ -264,7 +_,7 @@
+     jvmArgumentProviders.add(provider)
  }
  
 -val generatedDir: java.nio.file.Path = layout.projectDirectory.dir("src/generated/java").asFile.toPath()
@@ -99,7 +100,7 @@
  idea {
      module {
          generatedSourceDirs.add(generatedDir.toFile())
-@@ -342,7 +_,7 @@
+@@ -357,7 +_,7 @@
  }
  
  fill {
@@ -108,3 +109,18 @@
      versionFamily(paperweight.minecraftVersion.map { it.split(".", "-").takeWhile { part -> part.toIntOrNull() != null }.take(2).joinToString(".") })
      version(paperweight.minecraftVersion)
  
+@@ -372,3 +_,14 @@
+         }
+     }
+ }
++
++// Janky Paper start - same task name on every version line (build-all-versions.sh, README): the Mojang-mapped
++// jar, which is what Paper ships for 1.21.11 too
++if ("createPaperclipJar" !in tasks.names) {
++    tasks.register("createPaperclipJar") {
++        group = "paperweight"
++        description = "Builds the Mojang-mapped Paperclip jar (alias of createMojmapPaperclipJar)"
++        dependsOn(tasks.createMojmapPaperclipJar)
++    }
++}
++// Janky Paper end

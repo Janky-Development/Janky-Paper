@@ -3,7 +3,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
     java
-    id("io.papermc.paperweight.patcher") version "2.0.0-beta.24"
+    id("io.papermc.paperweight.patcher") version "2.0.0-beta.19"
 }
 
 paperweight {
@@ -21,30 +21,15 @@ paperweight {
             outputFile = file("janky-paper-api/build.gradle.kts")
             patchFile = file("janky-paper-api/build.gradle.kts.patch")
         }
-        patchFile {
-            path = "paper-checkstyle/build.gradle.kts"
-            outputFile = file("janky-paper-checkstyle/build.gradle.kts")
-            patchFile = file("janky-paper-checkstyle/build.gradle.kts.patch")
-        }
 
-        // Paper sources are checked out into paper-api / paper-checkstyle / .checkstyle and our patches applied on top.
+        // Paper sources are checked out into paper-api and our patches applied on top.
         // (paper-server is handled by the fork block inside janky-paper-server/build.gradle.kts.patch)
+        // Paper only gained its paper-checkstyle module in 26.2, so this line has no janky-paper-checkstyle.
         patchDir("paperApi") {
             upstreamPath = "paper-api"
             excludes = setOf("build.gradle.kts")
             patchesDir = file("janky-paper-api/paper-patches")
             outputDir = file("paper-api")
-        }
-        patchDir("paperCheckstyle") {
-            upstreamPath = "paper-checkstyle"
-            excludes = setOf("build.gradle.kts")
-            patchesDir = file("janky-paper-checkstyle/paper-patches")
-            outputDir = file("paper-checkstyle")
-        }
-        patchDir("paperCheckstyleConfig") {
-            upstreamPath = ".checkstyle"
-            patchesDir = file("janky-paper-checkstyle/config-patches")
-            outputDir = file(".checkstyle")
         }
     }
 }
@@ -57,7 +42,7 @@ subprojects {
 
     extensions.configure<JavaPluginExtension> {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(25)
+            languageVersion = JavaLanguageVersion.of(21)
         }
     }
 
@@ -72,7 +57,7 @@ subprojects {
     }
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = Charsets.UTF_8.name()
-        options.release = 25
+        options.release = 21
         options.isFork = true
         options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal"))
     }
