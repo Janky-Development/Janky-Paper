@@ -1,6 +1,6 @@
 --- a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
 +++ b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
-@@ -244,6 +_,11 @@
+@@ -250,6 +_,11 @@
  
              ClassLoader classLoader = plugin.getClass().getClassLoader();
              if (classLoader instanceof ConfiguredPluginClassLoader configuredPluginClassLoader) {

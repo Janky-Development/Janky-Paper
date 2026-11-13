@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/level/ServerEntityGetter.java
 +++ b/net/minecraft/server/level/ServerEntityGetter.java
-@@ -89,6 +_,12 @@
+@@ -73,6 +_,12 @@
          final double y,
          final double z
      ) {

@@ -1,7 +1,7 @@
 --- a/net/minecraft/server/level/ServerEntity.java
 +++ b/net/minecraft/server/level/ServerEntity.java
-@@ -142,7 +_,9 @@
-             this.entity.syncPosition = false;
+@@ -137,7 +_,9 @@
+             this.sendDirtyEntityData();
          }
  
 -        if (this.forceStateResync || this.tickCount % this.updateInterval == 0 || this.entity.needsSync || this.entity.getEntityData().isDirty()) { // Paper - fix desync when a player is added to the tracker
@@ -11,7 +11,7 @@
              byte yRotn = Mth.packDegrees(this.entity.getYRot());
              byte xRotn = Mth.packDegrees(this.entity.getXRot());
              boolean shouldSendRotation = Math.abs(yRotn - this.lastSentYRot) >= 1 || Math.abs(xRotn - this.lastSentXRot) >= 1;
-@@ -273,6 +_,46 @@
+@@ -268,6 +_,46 @@
              this.synchronizer.sendToTrackingPlayersAndSelf(new ClientboundSetEntityMotionPacket(this.entity));
          }
      }

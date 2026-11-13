@@ -17,8 +17,8 @@
 +                case DISTANCE_UNKNOWN -> dev.jankypaper.server.log.JankyLog.warn("Development build - update checks are unavailable for this version"); // Janky Paper - styled logs
                  default -> {
                      if (apiResult.isPresent()) {
-                         final MinecraftVersionFetcher result = apiResult.get();
-@@ -124,7 +_,7 @@
+                         COMPONENT_LOGGER.warn(text("*** You are running an outdated version of Minecraft, which is " + apiResult.get().distance() + " release(s) and " + distance + " build(s) behind!"));
+@@ -123,7 +_,7 @@
          return switch (distance) {
              case DISTANCE_ERROR -> text("Error obtaining version information", NamedTextColor.YELLOW);
              case 0 -> text("You are running the latest version", NamedTextColor.GREEN);
@@ -27,7 +27,7 @@
              default -> text("You are " + distance + " version(s) behind", NamedTextColor.YELLOW)
                  .append(Component.newline())
                  .append(text("Download the new version at: ")
-@@ -199,6 +_,7 @@
+@@ -193,6 +_,7 @@
      }
  
      private static int fetchDistanceFromSiteApi(final int jenkinsBuild) {
@@ -35,7 +35,7 @@
          try {
              final URL buildsUrl = URI.create("https://fill.papermc.io/v3/projects/paper/versions/" + PaperVersionFetcher.BUILD_INFO.minecraftVersionId() + "/builds").toURL();
              final HttpURLConnection connection = (HttpURLConnection) buildsUrl.openConnection();
-@@ -225,6 +_,7 @@
+@@ -219,6 +_,7 @@
  
      // Contributed by Techcable <Techcable@outlook.com> in GH-65
      private static int fetchDistanceFromGitHub(final String branch, final String hash) {
