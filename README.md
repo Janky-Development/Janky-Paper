@@ -17,10 +17,10 @@ Paper's changes are patches on top of it.
 
 | | |
 |---|---|
-| Minecraft | **26.3** (`mcVersion` in `gradle.properties`) |
-| Based on Paper | commit `7e88a0da385c201f00011ce5eef1834d391e4023` (`paperRef`) |
+| Minecraft | **26.2** (`mcVersion` in `gradle.properties`) - this is the `ver/26.2` branch; `main` has the newest Minecraft version and the list of every supported one |
+| Based on Paper | commit `e4d6dfd1597968e78a3d405dce73d1d1f14a4b81` (`paperRef`, Paper 26.2 build 135) |
 | Channel | ALPHA |
-| Java | 25 (Gradle auto-provisions a JetBrains JDK 25 for the dev server) |
+| Java | 25 (Gradle auto-provisions a JDK 25 for the dev server) |
 
 ---
 
