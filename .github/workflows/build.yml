@@ -25,6 +25,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
       - name: Configure Git User Details
         run: git config --global user.email "actions@github.com" && git config --global user.name "GitHub Actions"
+      # Commits made on Windows (core.filemode=false) keep losing gradlew's executable bit: don't depend on it
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x gradlew
       - name: Apply Patches
         run: ./gradlew applyAllPatches --stacktrace
       - name: Build
