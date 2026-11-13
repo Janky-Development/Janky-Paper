@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/network/ServerConnectionListener.java
 +++ b/net/minecraft/server/network/ServerConnectionListener.java
-@@ -77,8 +_,8 @@
+@@ -78,8 +_,8 @@
              }
              // Paper end - Warn people with console access that HAProxy is in use.
              // Paper start - Use Velocity cipher
@@ -11,11 +11,3 @@
              // Paper end - Use Velocity cipher
              this.channels
                  .add(
-@@ -258,6 +_,7 @@
-     public void handleAllDisconnections() {
-         synchronized (this.connections) {
-             for (Connection connection : this.connections) {
-+                if (connection.channel == null) continue; // Janky Paper - channel setup failed before it became active; nothing to close
-                 connection.channel.close().awaitUninterruptibly();
-                 connection.handleDisconnection();
-             }

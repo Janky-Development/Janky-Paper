@@ -8,21 +8,21 @@
  
          Objects.checkFromIndexSize(0, len, raw.length);
          for (int i = 0; i < len; ++i) {
-@@ -1004,11 +_,11 @@
-                 }
-                 ((ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerEntity)entity).moonrise$setTrackedEntity(trackedEntity);
-                 // Paper end - optimise entity tracker
--                trackedEntity.updatePlayers(this.level.players());
-+                trackedEntity.updatePlayers(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.level.players())); // Janky Paper - lightweight bots - a new entity is only offered to real viewers
-                 if (entity instanceof ServerPlayer player) {
-                     this.updatePlayerStatus(player, true);
+@@ -1003,11 +_,11 @@
+                     }
+                     ((ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerEntity)entity).moonrise$setTrackedEntity(trackedEntity);
+                     // Paper end - optimise entity tracker
+-                    trackedEntity.updatePlayers(this.level.players());
++                    trackedEntity.updatePlayers(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.level.players())); // Janky Paper - lightweight bots - a new entity is only offered to real viewers
+                     if (entity instanceof ServerPlayer player) {
+                         this.updatePlayerStatus(player, true);
  
--                    for (ChunkMap.TrackedEntity e : this.entityMap.values()) {
-+                    if (!player.jankyBot) for (ChunkMap.TrackedEntity e : this.entityMap.values()) { // Janky Paper - lightweight bots - a bot views nothing, skip offering it every entity
-                         if (e.entity != player) {
-                             e.updatePlayer(player);
-                         }
-@@ -1352,6 +_,12 @@
+-                        for (ChunkMap.TrackedEntity e : this.entityMap.values()) {
++                        if (!player.jankyBot) for (ChunkMap.TrackedEntity e : this.entityMap.values()) { // Janky Paper - lightweight bots - a bot views nothing, skip offering it every entity
+                             if (e.entity != player) {
+                                 e.updatePlayer(player);
+                             }
+@@ -1356,6 +_,12 @@
  
          public void updatePlayer(final ServerPlayer player) {
              org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot

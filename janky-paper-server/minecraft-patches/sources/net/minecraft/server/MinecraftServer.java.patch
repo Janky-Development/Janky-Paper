@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -966,7 +_,7 @@
+@@ -962,7 +_,7 @@
  
          for (ServerLevel level : this.getAllLevels()) {
              if (!silent) {
@@ -9,7 +9,7 @@
              }
  
              level.save(null, flush, SharedConstants.DEBUG_DONT_SAVE_WORLD || level.noSave && !force, close); // Paper - add close param
-@@ -1045,7 +_,7 @@
+@@ -1044,7 +_,7 @@
              this.cancelRecordingMetrics();
          }
  
@@ -18,7 +18,7 @@
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
          // CraftBukkit start
          if (this.server != null) {
-@@ -1057,14 +_,14 @@
+@@ -1056,13 +_,13 @@
          this.getConnection().stop();
          this.isSaving = true;
          if (this.playerList != null) {
@@ -26,7 +26,6 @@
 +            dev.jankypaper.server.log.JankyLog.info("Saving players"); // Janky Paper - styled logs
              this.playerList.saveAll();
              this.playerList.removeAll(this.isRestarting); // Paper
-             this.getConnection().handleAllDisconnections(); // Paper
              try { Thread.sleep(100); } catch (InterruptedException ex) {} // CraftBukkit - SPIGOT-625 - give server at least a chance to send packets
          }
  
@@ -35,9 +34,9 @@
  
          for (ServerLevel level : this.getAllLevels()) {
              if (level != null) {
-@@ -1107,19 +_,20 @@
+@@ -1105,19 +_,20 @@
              io.papermc.paper.util.MCUtil.ASYNC_EXECUTOR.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS); // Paper
-         } catch (InterruptedException _) {} // Paper
+         } catch (java.lang.InterruptedException ignored) {} // Paper
          if (org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) {
 -            LOGGER.info("Saving usercache.json");
 +            dev.jankypaper.server.log.JankyLog.info("Saving usercache.json"); // Janky Paper - styled logs
@@ -59,7 +58,7 @@
          Util.shutdownExecutors();
          this.onServerExit();
          // Paper end - Improved watchdog support - move final shutdown items here
-@@ -1301,7 +_,7 @@
+@@ -1299,7 +_,7 @@
              this.server.spark.enableBeforePlugins(); // Paper - spark
              // Spigot start
              // Paper start
@@ -68,7 +67,7 @@
              new io.papermc.paper.threadedregions.RegionizedServerInitEvent().callEvent(); // Call Folia init event
              this.server.getScheduler().mainThreadHeartbeat(); // run all 1 tick delay tasks during init,
              // this is going to be the first thing the tick process does anyway, so move done and run it after
-@@ -1309,17 +_,18 @@
+@@ -1307,17 +_,18 @@
              // anything at 3+ won't be caught here but also will trip watchdog....
              // tasks are default scheduled at -1 + delay, and first tick will tick at 1
              final long actualDoneTimeMs = System.currentTimeMillis() - org.bukkit.craftbukkit.Main.BOOT_TIME.toEpochMilli(); // Paper - Improve startup message
@@ -93,7 +92,7 @@
              }
              // Paper end - Add onboarding message for initial server start
              // Paper start - Improve outdated version checking
-@@ -1644,6 +_,7 @@
+@@ -1642,6 +_,7 @@
          this.tickCount++;
          this.tickRateManager.tick();
          this.tickChildren(haveTime);
@@ -101,7 +100,7 @@
          if (nano - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
              this.lastServerStatus = nano;
              this.status = this.buildServerStatus();
-@@ -1791,6 +_,7 @@
+@@ -1789,6 +_,7 @@
          ProfilerFiller profiler = Profiler.get();
          this.getPlayerList().getPlayers().forEach(playerx -> playerx.connection.suspendFlushing());
          this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
@@ -109,7 +108,7 @@
          // Paper start - optimise Folia entity scheduler
          ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
          for (io.papermc.paper.threadedregions.EntityScheduler scheduler : this.entitySchedulerTickList.getAllSchedulers()) {
-@@ -1880,7 +_,7 @@
+@@ -1874,7 +_,7 @@
  
          for (ServerPlayer player : this.playerList.getPlayers()) {
              player.connection.chunkSender.sendNextChunks(player);
@@ -118,7 +117,7 @@
          }
  
          profiler.pop();
-@@ -2041,7 +_,7 @@
+@@ -2031,7 +_,7 @@
      }
  
      protected void initializeKeyPair() {
@@ -127,12 +126,12 @@
  
          try {
              this.keyPair = Crypt.generateKeyPair();
-@@ -2399,7 +_,7 @@
-                 boolean isSelected = selected.contains(packId);
-                 if (!isSelected && pack.getPackSource().shouldAddAutomatically()) {
-                     if (packFeatures.isSubsetOf(allowedFeatures)) {
--                        LOGGER.info("Found new data pack {}, loading it automatically", packId);
-+                        dev.jankypaper.server.log.JankyLog.info("Found new data pack '" + packId + "' - loading it automatically"); // Janky Paper - styled logs
-                         selected.add(packId);
-                     } else {
-                         LOGGER.info(
+@@ -2387,7 +_,7 @@
+                     boolean isSelected = selected.contains(packId);
+                     if (!isSelected && pack.getPackSource().shouldAddAutomatically()) {
+                         if (packFeatures.isSubsetOf(allowedFeatures)) {
+-                            LOGGER.info("Found new data pack {}, loading it automatically", packId);
++                            dev.jankypaper.server.log.JankyLog.info("Found new data pack '" + packId + "' - loading it automatically"); // Janky Paper - styled logs
+                             selected.add(packId);
+                         } else {
+                             LOGGER.info(

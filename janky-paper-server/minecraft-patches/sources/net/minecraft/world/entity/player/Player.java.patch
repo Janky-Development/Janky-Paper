@@ -1,6 +1,6 @@
 --- a/net/minecraft/world/entity/player/Player.java
 +++ b/net/minecraft/world/entity/player/Player.java
-@@ -360,6 +_,16 @@
+@@ -357,6 +_,16 @@
      }
  
      protected void updatePlayerPose() {
@@ -17,7 +17,7 @@
          if (this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.SWIMMING)) {
              Pose desiredPose = this.getDesiredPose();
              Pose actualPose;
-@@ -500,7 +_,7 @@
+@@ -497,7 +_,7 @@
                  pickupArea = this.getBoundingBox().inflate(1.0, 0.5, 1.0);
              }
  
@@ -26,7 +26,7 @@
              List<Entity> orbs = Lists.newArrayList();
  
              for (Entity entity : entities) {
-@@ -1495,6 +_,7 @@
+@@ -1487,6 +_,7 @@
  
      @Override
      public void travel(final Vec3 input) {

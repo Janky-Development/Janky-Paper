@@ -1,6 +1,6 @@
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -2950,6 +_,10 @@
+@@ -2955,6 +_,10 @@
      public void setSprinting(final boolean isSprinting) {
          super.setSprinting(isSprinting);
          AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -11,7 +11,7 @@
          speed.removeModifier(SPEED_MODIFIER_SPRINTING.id());
          if (isSprinting) {
              speed.addTransientModifier(SPEED_MODIFIER_SPRINTING);
-@@ -3775,6 +_,7 @@
+@@ -3774,6 +_,7 @@
          }
  
          if (!this.level().isClientSide() || this.isLocalInstanceAuthoritative()) {

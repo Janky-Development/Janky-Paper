@@ -132,7 +132,7 @@
      private boolean isStateClimbable(final BlockState state) {
          return state.is(BlockTags.CLIMBABLE) || state.is(Blocks.POWDER_SNOW);
      }
-@@ -4978,16 +_,7 @@
+@@ -4977,16 +_,7 @@
                  }
              }
  
@@ -150,7 +150,7 @@
              // Paper start - Fix MC-44654
              if (this.getType().updateInterval() == Integer.MAX_VALUE) {
                  this.needsSync = true;
-@@ -5001,6 +_,28 @@
+@@ -5000,6 +_,28 @@
          }
          // Paper end - Block invalid positions and bounding box
      }
