@@ -8,3 +8,8 @@ updates:
     groups:
       actions:
         patterns: [ "*" ]
+    ignore:
+      # setup-gradle v6 moved its caching into a closed-source component with separate Terms of Use (free only
+      # as a preview for private repositories). Stay on v5 until someone accepts that on purpose.
+      - dependency-name: gradle/actions
+        update-types: [ "version-update:semver-major" ]

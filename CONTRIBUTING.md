@@ -4,7 +4,7 @@ Thanks for helping! Janky Paper is a Paper fork for recording servers: thousands
 a few chunks, plus focus mode for the area being filmed. A good change makes that faster or more reliable
 without changing gameplay for real players.
 
-- Bugs and ideas: open an [issue](https://github.com/Pepe-tf/Janky-Paper/issues/new/choose) first, especially before a bigger change, so we can
+- Bugs and ideas: open an [issue](https://github.com/Janky-Development/Janky-Paper/issues/new/choose) first, especially before a bigger change, so we can
   agree on the approach before you spend time on it.
 - Security problems: do not open a public issue. See [SECURITY.md](SECURITY.md).
 - Problems that also happen on plain Paper belong to [Paper](https://github.com/PaperMC/Paper/issues).
@@ -14,7 +14,7 @@ without changing gameplay for real players.
 You need Git and a JDK (17+) to run Gradle. Gradle downloads the JDK it compiles with (25, or 21 for 1.21.11).
 
 ```bash
-git clone https://github.com/Pepe-tf/Janky-Paper.git
+git clone https://github.com/Janky-Development/Janky-Paper.git
 cd Janky-Paper
 ./gradlew applyAllPatches      # checks out Paper, decompiles Minecraft, applies our patches
 ./gradlew build                # compiles and runs the tests, exactly what CI runs

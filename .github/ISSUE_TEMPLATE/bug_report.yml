@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for reporting! Please check first that it does **not** also happen on plain [Paper](https://papermc.io/downloads/paper) with the same plugins - if it does, report it to [Paper](https://github.com/PaperMC/Paper/issues).
-        Security problems: please use [private reporting](https://github.com/Pepe-tf/Janky-Paper/security/advisories/new) instead.
+        Security problems: please use [private reporting](https://github.com/Janky-Development/Janky-Paper/security/advisories/new) instead.
   - type: dropdown
     id: minecraft
     attributes:

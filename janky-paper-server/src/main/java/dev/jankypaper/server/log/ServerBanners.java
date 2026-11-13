@@ -25,7 +25,7 @@ public final class ServerBanners {
      * Who made Janky Paper - printed at every start. Every copy and fork must keep this credit unchanged
      * (NOTICE.md, additional term 3 under GPL-3.0 section 7(b)); add your own names next to it.
      */
-    public static final String CREDITS = "created and owned by Pepe-tf, code by CamerG1011 - https://github.com/Pepe-tf/Janky-Paper";
+    public static final String CREDITS = "created and owned by Pepe-tf, code by CamerG1011 - https://github.com/Janky-Development/Janky-Paper";
 
     private ServerBanners() {
     }

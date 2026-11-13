@@ -72,7 +72,7 @@ Paper's changes are patches on top of it.
 
 ### Getting the jar
 
-Download it from the [GitHub releases](https://github.com/Pepe-tf/Janky-Paper/releases). There's a
+Download it from the [GitHub releases](https://github.com/Janky-Development/Janky-Paper/releases). There's a
 `janky-paper-<minecraft version>-<release>.jar` for every supported Minecraft version (see
 [Releases](#releases)). Or build it yourself (see [Developing Janky Paper](#developing-janky-paper)):
 

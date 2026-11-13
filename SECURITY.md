@@ -3,7 +3,7 @@
 ## Supported versions
 
 Security fixes go into the newest release of each supported Minecraft version (see the
-[releases](https://github.com/Pepe-tf/Janky-Paper/releases) and `versions.txt`). Older Janky Paper releases are not patched; update to the latest
+[releases](https://github.com/Janky-Development/Janky-Paper/releases) and `versions.txt`). Older Janky Paper releases are not patched; update to the latest
 one for your Minecraft version.
 
 ## Reporting a vulnerability
@@ -11,7 +11,7 @@ one for your Minecraft version.
 **Do not report security problems in public issues, pull requests or discussions.**
 
 Report them privately through GitHub: **Security** tab → **Report a vulnerability**
-([direct link](https://github.com/Pepe-tf/Janky-Paper/security/advisories/new)). Please include:
+([direct link](https://github.com/Janky-Development/Janky-Paper/security/advisories/new)). Please include:
 
 - what the problem is and what an attacker could do with it (crash the server, run code, read data, ...)
 - the Janky Paper version (`/version`) and Minecraft version
