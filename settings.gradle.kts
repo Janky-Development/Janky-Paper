@@ -17,7 +17,6 @@ rootProject.name = "janky-paper"
 
 include("janky-paper-api")
 include("janky-paper-server")
-include("janky-paper-checkstyle")
 
 // Janky Paper - plugins parse Bukkit.getBukkitVersion() expecting Paper's "<mc>.build.<n>-<channel>" shape
 // (ItemEdit, voicechat, NBT-API, ...); "<mc>.local-SNAPSHOT" makes them fail or fall back to degraded modes.
