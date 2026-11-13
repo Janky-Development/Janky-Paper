@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
-@@ -719,6 +_,7 @@
+@@ -720,6 +_,7 @@
  
          final ServerPlayer[] raw = players.getRawDataUnchecked();
          final int len = players.size();
@@ -8,7 +8,7 @@
  
          Objects.checkFromIndexSize(0, len, raw.length);
          for (int i = 0; i < len; ++i) {
-@@ -1010,11 +_,11 @@
+@@ -1011,11 +_,11 @@
                  // note: the tick loop is OK when adding entities
                  this.trackerEntities.add(entity);
                  // Paper end - optimise entity tracker
@@ -22,7 +22,7 @@
                          if (e.entity != player) {
                              e.updatePlayer(player);
                          }
-@@ -1407,6 +_,12 @@
+@@ -1378,6 +_,12 @@
  
          public void updatePlayer(final ServerPlayer player) {
              org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
@@ -33,5 +33,5 @@
 +            }
 +            // Janky Paper end - lightweight bots
              if (player != this.entity) {
-                 // Paper start - remove allocation of Vec3 here
+                 // Paper start - remove allocation of Vec3D here
                  // Vec3 deltaToPlayer = player.position().subtract(this.entity.position());

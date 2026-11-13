@@ -1,6 +1,6 @@
---- a/net/minecraft/world/entity/monster/Enderman.java
-+++ b/net/minecraft/world/entity/monster/Enderman.java
-@@ -223,6 +_,7 @@
+--- a/net/minecraft/world/entity/monster/EnderMan.java
++++ b/net/minecraft/world/entity/monster/EnderMan.java
+@@ -219,6 +_,7 @@
      }
  
      private boolean isBeingStaredBy(final Player player) {

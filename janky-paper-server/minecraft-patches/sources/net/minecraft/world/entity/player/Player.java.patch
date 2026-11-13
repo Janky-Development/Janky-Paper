@@ -1,6 +1,6 @@
 --- a/net/minecraft/world/entity/player/Player.java
 +++ b/net/minecraft/world/entity/player/Player.java
-@@ -362,6 +_,16 @@
+@@ -361,6 +_,16 @@
      }
  
      public void updatePlayerPose() {
@@ -26,7 +26,7 @@
              List<Entity> orbs = Lists.newArrayList();
  
              for (Entity entity : entities) {
-@@ -1509,6 +_,7 @@
+@@ -1510,6 +_,7 @@
  
      @Override
      public void travel(final Vec3 input) {
