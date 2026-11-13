@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -204,7 +_,7 @@
+@@ -243,7 +_,7 @@
          consoleThread.setDaemon(true);
          consoleThread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
          // consoleThread.start(); // Paper - Enhance console tab completions for brigadier commands; moved down
@@ -9,7 +9,7 @@
          if (Runtime.getRuntime().maxMemory() / 1024L / 1024L < 512L) {
              LOGGER.warn("To start the server with more ram, launch it as \"java -Xmx1024M -Xms1024M -jar minecraft_server.jar\"");
          }
-@@ -219,7 +_,7 @@
+@@ -258,7 +_,7 @@
          }
          // Paper end - detect running as root
  
@@ -18,7 +18,7 @@
          DedicatedServerProperties properties = this.settings.getProperties();
          if (this.isSingleplayer()) {
              this.setLocalIp("127.0.0.1");
-@@ -248,12 +_,13 @@
+@@ -287,12 +_,13 @@
          org.spigotmc.WatchdogThread.doStart(org.spigotmc.SpigotConfig.timeoutTime, org.spigotmc.SpigotConfig.restartOnCrash); // Paper - start watchdog thread
          consoleThread.start(); // Paper - Enhance console tab completions for brigadier commands; start console thread after MinecraftServer.console & PaperConfig are initialized
          io.papermc.paper.command.PaperCommands.registerCommands(this); // Paper - setup /paper command
@@ -33,7 +33,7 @@
          // Paper start - Unix domain socket support
          java.net.SocketAddress bindAddress;
          if (this.getLocalIp().startsWith("unix:")) {
-@@ -281,7 +_,7 @@
+@@ -320,7 +_,7 @@
          // Paper end - Unix domain socket support
  
          this.initializeKeyPair();
@@ -42,7 +42,7 @@
  
          try {
              this.getConnection().startTcpServerListener(bindAddress); // Paper - Unix domain socket support
-@@ -335,11 +_,11 @@
+@@ -374,11 +_,11 @@
          this.tickTimeLogger = new RemoteSampleLogger(TpsDebugDimensions.values().length, this.debugSubscribers(), RemoteDebugSampleType.TICK_TIME);
          long levelNanoTime = Util.getNanos();
          this.services.nameToIdCache().resolveOfflineUsers(!this.usesAuthentication());

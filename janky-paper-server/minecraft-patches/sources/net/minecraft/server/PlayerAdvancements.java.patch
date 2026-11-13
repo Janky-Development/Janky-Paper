@@ -13,7 +13,7 @@
 +    // Janky Paper start - lightweight bots
 +    /** Drops all advancement progress (~1,800 progress objects per player) - bots never earn or display advancements. */
 +    public void jankyReleaseForBot() {
-+        this.clearTriggers();
++        this.stopListening();
 +        this.progress.clear();
 +        this.visible.clear();
 +        this.rootsToUpdate.clear();
@@ -24,15 +24,15 @@
  
      public void setPlayer(final ServerPlayer player) {
          this.player = player;
-@@ -82,6 +_,7 @@
+@@ -84,6 +_,7 @@
      }
  
      public void reload(final ServerAdvancementManager manager) {
 +        if (this.player.jankyBot) { this.jankyReleaseForBot(); return; } // Janky Paper - lightweight bots
-         this.clearTriggers();
+         this.stopListening();
          this.progress.clear();
          this.visible.clear();
-@@ -91,6 +_,7 @@
+@@ -93,6 +_,7 @@
          this.lastSelectedTab = null;
          this.tree = manager.tree();
          this.load(manager);
@@ -40,7 +40,7 @@
      }
  
      private void registerListeners(final ServerAdvancementManager manager) {
-@@ -128,6 +_,7 @@
+@@ -130,6 +_,7 @@
  
      public void save() {
          if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
@@ -48,7 +48,7 @@
          JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
  
          try {
-@@ -232,6 +_,7 @@
+@@ -234,6 +_,7 @@
      }
  
      private void registerListeners(final AdvancementHolder holder) {
@@ -56,7 +56,7 @@
          AdvancementProgress advancementProgress = this.getOrStartProgress(holder);
          if (!advancementProgress.isDone()) {
              for (Entry<String, Criterion<?>> entry : holder.value().criteria().entrySet()) {
-@@ -255,6 +_,14 @@
+@@ -265,6 +_,14 @@
      }
  
      public void flushDirty(final ServerPlayer player, final boolean showAdvancements) {

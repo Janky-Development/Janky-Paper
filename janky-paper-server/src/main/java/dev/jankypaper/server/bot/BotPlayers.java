@@ -11,7 +11,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.animal.fish.Pufferfish;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.cubemob.AbstractCubeMob;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.phys.AABB;
 import org.bukkit.configuration.ConfigurationSection;
@@ -73,9 +73,9 @@ public final class BotPlayers {
     private static final java.util.Map<List<ServerPlayer>, RealPlayers> realPlayers =
         java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
 
-    /** Every vanilla entity class that overrides {@code Entity#playerTouch} (ThrownTrident and SulfurCube are subclasses). */
+    /** Every vanilla entity class that overrides {@code Entity#playerTouch} (ThrownTrident and MagmaCube are subclasses). */
     private static final List<Class<? extends Entity>> TOUCHABLE = List.of(
-        ItemEntity.class, ExperienceOrb.class, AbstractArrow.class, AbstractCubeMob.class, Pufferfish.class
+        ItemEntity.class, ExperienceOrb.class, AbstractArrow.class, Slime.class, Pufferfish.class
     );
 
     private BotPlayers() {

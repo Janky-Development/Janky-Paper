@@ -1,6 +1,6 @@
 --- a/io/papermc/paper/entity/activation/ActivationRange.java
 +++ b/io/papermc/paper/entity/activation/ActivationRange.java
-@@ -142,6 +_,8 @@
+@@ -141,6 +_,8 @@
          maxRange = Math.max(maxRange, villagerActivationRange);
          maxRange = Math.min((world.spigotConfig.simulationDistance << 4) - 8, maxRange);
  
@@ -9,7 +9,7 @@
          for (final Player player : world.players()) {
              player.activatedTick = MinecraftServer.currentTick;
              if (world.spigotConfig.ignoreSpectatorActivation && player.isSpectator()) {
-@@ -149,14 +_,22 @@
+@@ -148,14 +_,22 @@
              }
  
              final int worldHeight = world.getHeight();
@@ -40,7 +40,7 @@
  
              final List<Entity> entities = world.getEntities((Entity) null, ActivationRange.maxBB, e -> true);
              final boolean tickMarkers = world.paperConfig().entities.markers.tick;
-@@ -168,6 +_,7 @@
+@@ -167,6 +_,7 @@
                  ActivationRange.activateEntity(entity);
              }
          }
