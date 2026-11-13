@@ -1,7 +1,7 @@
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -777,6 +_,12 @@
-         if (this.level().getDifficulty() == Difficulty.PEACEFUL && !this.getType().isAllowedInPeaceful()) {
+@@ -769,6 +_,12 @@
+         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldDespawnInPeaceful()) { // Paper - allow changing despawnInPeaceful
              this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
          } else if (!this.isPersistenceRequired() && !this.requiresCustomPersistence()) {
 +            // Janky Paper start - lightweight bots - with many players online, each mob checks every 4th tick (staggered)
@@ -13,7 +13,7 @@
              Entity player = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
              if (player != null) {
                  // Paper start - Configurable despawn distances
-@@ -793,7 +_,7 @@
+@@ -785,7 +_,7 @@
                  }
  
                  if (despawnRangePair.soft().shouldDespawn(shape, dxSqr, dySqr, dzSqr, dy)) {

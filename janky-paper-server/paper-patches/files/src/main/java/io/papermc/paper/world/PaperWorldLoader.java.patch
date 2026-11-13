@@ -1,24 +1,36 @@
 --- a/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
 +++ b/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
-@@ -171,7 +_,20 @@
-     private boolean hasDimensionData(final LevelStem stem) {
-         final ResourceKey<LevelStem> stemKey = this.server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getResourceKey(stem).orElseThrow();
-         final ResourceKey<Level> dimensionKey = Registries.levelStemToLevel(stemKey);
--        return Files.isDirectory(this.server.storageSource.getDimensionPath(dimensionKey));
+@@ -152,7 +_,7 @@
+             return;
+         }
+ 
+-        final WorldGenSettings worldGenSettings = !hasWorldData
++        final WorldGenSettings worldGenSettings = !hasWorldData || !this.jankyHasGenSettings(loading.info().dimensionKey()) // Janky Paper - missing world gen settings file
+             ? this.server.getWorldGenSettings()
+             : loadWorldGenSettings(
+             this.server.storageSource,
+@@ -173,6 +_,24 @@
+ 
+         this.server.createLevel(stem, loading, worldDataAndGenSettings);
+     }
++
++    // Janky Paper start - a dimension folder without its world gen settings file must not crash the server
++    private boolean jankyHasGenSettings(final ResourceKey<Level> dimensionKey) {
++        if (dimensionKey == Level.OVERWORLD) {
++            return true;
++        }
 +        final java.nio.file.Path dimensionPath = this.server.storageSource.getDimensionPath(dimensionKey);
-+        if (!Files.isDirectory(dimensionPath)) {
++        if (!java.nio.file.Files.isDirectory(dimensionPath)) {
++            return false; // a dimension that was never generated gets the server's settings, like a new world
++        }
++        final java.nio.file.Path settingsFile = WorldGenSettings.TYPE.id().withSuffix(".dat").resolveAgainst(dimensionPath.resolve(LevelResource.DATA.id()));
++        if (!java.nio.file.Files.isRegularFile(settingsFile)) {
++            dev.jankypaper.server.log.JankyLog.warn("Dimension folder for " + dimensionKey.identifier() + " exists but " + settingsFile.getFileName() + " is missing - regenerating world gen settings from the server defaults");
 +            return false;
 +        }
-+        // Janky Paper start - a dimension folder without its world gen settings file must not crash the server
-+        if (dimensionKey != Level.OVERWORLD) {
-+            final java.nio.file.Path settingsFile = WorldGenSettings.TYPE.id().withSuffix(".dat").resolveAgainst(dimensionPath.resolve(LevelResource.DATA.id()));
-+            if (!Files.isRegularFile(settingsFile)) {
-+                dev.jankypaper.server.log.JankyLog.warn("Dimension folder for " + dimensionKey.identifier() + " exists but " + settingsFile.getFileName() + " is missing - regenerating world gen settings from the server defaults");
-+                return false;
-+            }
-+        }
-+        // Janky Paper end
 +        return true;
-     }
++    }
++    // Janky Paper end
  
      public static WorldGenSettings loadWorldGenSettings(
+         final LevelStorageSource.LevelStorageAccess access, final net.minecraft.core.HolderLookup.Provider registryAccess, final ResourceKey<Level> dimension

@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -439,6 +_,19 @@
+@@ -433,6 +_,19 @@
      public boolean suppressTrackerForLogin = false; // Paper - Fire PlayerJoinEvent when Player is actually ready
      // CraftBukkit end
      public boolean isRealPlayer; // Paper
@@ -20,7 +20,7 @@
      public com.destroystokyo.paper.event.entity.@Nullable PlayerNaturallySpawnCreaturesEvent playerNaturallySpawnedEvent; // Paper - PlayerNaturallySpawnCreaturesEvent
      public org.bukkit.event.player.PlayerQuitEvent.@Nullable QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
  
-@@ -730,7 +_,7 @@
+@@ -731,7 +_,7 @@
          }
  
          // Paper start - Configurable container update tick rate
@@ -29,7 +29,7 @@
              this.containerMenu.broadcastChanges();
              // Broadcast equipment and crafting slots when the player is in a container, fixes MC-297508
              if (this.containerMenu != this.inventoryMenu) {
-@@ -764,7 +_,7 @@
+@@ -765,7 +_,7 @@
  
          this.trackStartFallingPosition();
          this.trackEnteredOrExitedLavaOnVehicle();
@@ -38,7 +38,7 @@
          this.advancements.flushDirty(this, true);
      }
  
-@@ -822,7 +_,7 @@
+@@ -823,7 +_,7 @@
                  }
              }
  
@@ -47,7 +47,7 @@
                  ItemStack itemStack = this.getInventory().getItem(i);
                  if (!itemStack.isEmpty()) {
                      this.synchronizeSpecialItemUpdates(itemStack);
-@@ -1774,6 +_,7 @@
+@@ -1787,6 +_,7 @@
  
      @Override
      protected void pushEntities() {
@@ -55,7 +55,7 @@
          if (this.level().tickRateManager().runsNormally()) {
              super.pushEntities();
          }
-@@ -2049,7 +_,7 @@
+@@ -2062,7 +_,7 @@
  
      @Override
      public void awardStat(final Stat<?> stat, final int count) {
@@ -64,7 +64,7 @@
          this.level().getCraftServer().getScoreboardManager().forAllObjectives(stat, this, score -> score.add(count)); // CraftBukkit - Get our scores instead
      }
  
-@@ -2962,6 +_,7 @@
+@@ -2973,6 +_,7 @@
      }
  
      public Set<DebugSubscription<?>> debugSubscriptions() {

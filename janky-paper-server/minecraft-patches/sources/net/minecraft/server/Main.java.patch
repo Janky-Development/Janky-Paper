@@ -1,6 +1,6 @@
 --- a/net/minecraft/server/Main.java
 +++ b/net/minecraft/server/Main.java
-@@ -266,7 +_,7 @@
+@@ -270,7 +_,7 @@
                                          worldData.worldDataAndGenSettings(), worldData.dimensions().dimensionsRegistryAccess()
                                      );
                                  } else {
