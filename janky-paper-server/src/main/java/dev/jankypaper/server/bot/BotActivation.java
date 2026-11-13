@@ -1,3 +1,8 @@
+/*
+ * Janky Paper - created and owned by Pepe-tf (https://github.com/Pepe-tf),
+ * code by CamerG1011 (https://github.com/CamerG1011) and the Janky Paper contributors.
+ * GNU GPL v3 with additional terms (LICENSE, NOTICE.md): every copy and fork must keep this credit.
+ */
 package dev.jankypaper.server.bot;
 
 import ca.spottedleaf.moonrise.common.util.CoordinateUtils;
