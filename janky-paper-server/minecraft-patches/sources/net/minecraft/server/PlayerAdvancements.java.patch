@@ -1,8 +1,8 @@
 --- a/net/minecraft/server/PlayerAdvancements.java
 +++ b/net/minecraft/server/PlayerAdvancements.java
-@@ -70,8 +_,23 @@
+@@ -68,8 +_,23 @@
          this.tree = manager.tree();
-         int defaultVersion = 1343;
+         int i = 1343;
          this.codec = DataFixTypes.ADVANCEMENTS.wrapCodec(PlayerAdvancements.Data.CODEC, dataFixer, 1343);
 +        if (dev.jankypaper.server.bot.BotPlayers.isExpectedBot(player.getUUID())) { this.jankyNotLoaded = true; return; } // Janky Paper - lightweight bots - a bot about to be placed never uses its progress
          this.load(manager);
@@ -22,44 +22,44 @@
 +    }
 +    // Janky Paper end - lightweight bots
  
-     public void setPlayer(final ServerPlayer player) {
+     public void setPlayer(ServerPlayer player) {
          this.player = player;
-@@ -84,6 +_,7 @@
+@@ -82,6 +_,7 @@
      }
  
-     public void reload(final ServerAdvancementManager manager) {
+     public void reload(ServerAdvancementManager manager) {
 +        if (this.player.jankyBot) { this.jankyReleaseForBot(); return; } // Janky Paper - lightweight bots
          this.stopListening();
          this.progress.clear();
          this.visible.clear();
-@@ -93,6 +_,7 @@
+@@ -91,6 +_,7 @@
          this.lastSelectedTab = null;
          this.tree = manager.tree();
          this.load(manager);
 +        this.jankyNotLoaded = false; // Janky Paper - lightweight bots - real progress is loaded now
      }
  
-     private void registerListeners(final ServerAdvancementManager manager) {
-@@ -130,6 +_,7 @@
+     private void registerListeners(ServerAdvancementManager manager) {
+@@ -128,6 +_,7 @@
  
      public void save() {
          if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
 +        if (this.player.jankyBot || this.jankyNotLoaded) return; // Janky Paper - lightweight bots - progress was released or never loaded, never overwrite the file with it
-         JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
+         JsonElement jsonElement = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
  
          try {
-@@ -234,6 +_,7 @@
+@@ -232,6 +_,7 @@
      }
  
-     private void registerListeners(final AdvancementHolder holder) {
+     private void registerListeners(AdvancementHolder advancement) {
 +        if (this.player.jankyBot) return; // Janky Paper - lightweight bots
-         AdvancementProgress advancementProgress = this.getOrStartProgress(holder);
-         if (!advancementProgress.isDone()) {
-             for (Entry<String, Criterion<?>> entry : holder.value().criteria().entrySet()) {
-@@ -265,6 +_,14 @@
+         AdvancementProgress orStartProgress = this.getOrStartProgress(advancement);
+         if (!orStartProgress.isDone()) {
+             for (Entry<String, Criterion<?>> entry : advancement.value().criteria().entrySet()) {
+@@ -263,6 +_,14 @@
      }
  
-     public void flushDirty(final ServerPlayer player, final boolean showAdvancements) {
+     public void flushDirty(ServerPlayer player, boolean showAdvancements) {
 +        // Janky Paper start - lightweight bots
 +        if (player.jankyBot) {
 +            this.isFirstPacket = false;
@@ -69,5 +69,5 @@
 +        }
 +        // Janky Paper end - lightweight bots
          if (this.isFirstPacket || !this.rootsToUpdate.isEmpty() || !this.progressChanged.isEmpty()) {
-             Map<Identifier, AdvancementProgress> progress = new HashMap<>();
-             Set<AdvancementHolder> added = new java.util.TreeSet<>(java.util.Comparator.comparing(adv -> adv.id().toString())); // Paper - Changed from HashSet to TreeSet ordered alphabetically.
+             Map<Identifier, AdvancementProgress> map = new HashMap<>();
+             Set<AdvancementHolder> set = new java.util.TreeSet<>(java.util.Comparator.comparing(adv -> adv.id().toString())); // Paper - Changed from HashSet to TreeSet ordered alphabetically.

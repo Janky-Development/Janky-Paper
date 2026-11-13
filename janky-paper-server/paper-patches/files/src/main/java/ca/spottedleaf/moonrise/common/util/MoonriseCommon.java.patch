@@ -1,6 +1,6 @@
 --- a/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
 +++ b/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
-@@ -40,12 +_,10 @@
+@@ -36,12 +_,10 @@
      public static final BalancedPrioritisedThreadPool.OrderedStreamGroup SERVER_GROUP = MoonriseCommon.WORKER_POOL.createOrderedStreamGroup();
  
      public static void adjustWorkerThreads(final int configWorkerThreads, final int configIoThreads) {
@@ -17,7 +17,7 @@
          defaultWorkerThreads = Integer.getInteger(PlatformHooks.get().getBrand() + ".WorkerThreadCount", Integer.valueOf(defaultWorkerThreads));
  
          int workerThreads = configWorkerThreads;
-@@ -54,12 +_,12 @@
+@@ -50,12 +_,12 @@
              workerThreads = defaultWorkerThreads;
          }
  
@@ -32,7 +32,7 @@
      }
  
      public static final long IO_QUEUE_HOLD_TIME = (long)(25.0e6); // 25ms
-@@ -89,14 +_,14 @@
+@@ -82,14 +_,14 @@
  
      public static void haltExecutors() {
          MoonriseCommon.WORKER_POOL.shutdown(false);

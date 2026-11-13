@@ -3,7 +3,7 @@
 @@ -476,6 +_,7 @@
      }
  
-     public void sendCommands(final ServerPlayer player) {
+     public void sendCommands(ServerPlayer player) {
 +        if (player.jankyBot) return; // Janky Paper - lightweight bots - building the command tree packet per bot is costly and nothing reads it
          // Paper start - Send empty commands if tab completion is disabled
          if (org.spigotmc.SpigotConfig.tabComplete < 0) {

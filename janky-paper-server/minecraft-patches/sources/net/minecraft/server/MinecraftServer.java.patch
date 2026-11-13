@@ -1,15 +1,15 @@
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -962,7 +_,7 @@
+@@ -946,7 +_,7 @@
  
-         for (ServerLevel level : this.getAllLevels()) {
-             if (!silent) {
--                LOGGER.info("Saving chunks for level '{}'/{}", level, level.dimension().identifier());
-+                LOGGER.debug("Saving chunks for level '{}'/{}", level, level.dimension().identifier()); // Janky Paper - console noise (ChunkHolderManager reports the save)
+         for (ServerLevel serverLevel : this.getAllLevels()) {
+             if (!suppressLogs) {
+-                LOGGER.info("Saving chunks for level '{}'/{}", serverLevel, serverLevel.dimension().identifier());
++                LOGGER.debug("Saving chunks for level '{}'/{}", serverLevel, serverLevel.dimension().identifier()); // Janky Paper - console noise (ChunkHolderManager reports the save)
              }
  
-             level.save(null, flush, SharedConstants.DEBUG_DONT_SAVE_WORLD || level.noSave && !force, close); // Paper - add close param
-@@ -1044,7 +_,7 @@
+             serverLevel.save(null, flush, SharedConstants.DEBUG_DONT_SAVE_WORLD || serverLevel.noSave && !force, close); // Paper - add close param
+@@ -1012,7 +_,7 @@
              this.cancelRecordingMetrics();
          }
  
@@ -18,7 +18,7 @@
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
          // CraftBukkit start
          if (this.server != null) {
-@@ -1056,13 +_,13 @@
+@@ -1025,13 +_,13 @@
          this.getConnection().stop();
          this.isSaving = true;
          if (this.playerList != null) {
@@ -32,9 +32,9 @@
 -        LOGGER.info("Saving worlds");
 +        dev.jankypaper.server.log.JankyLog.info("Saving worlds"); // Janky Paper - styled logs
  
-         for (ServerLevel level : this.getAllLevels()) {
-             if (level != null) {
-@@ -1105,19 +_,20 @@
+         for (ServerLevel serverLevel : this.getAllLevels()) {
+             if (serverLevel != null) {
+@@ -1072,19 +_,20 @@
              io.papermc.paper.util.MCUtil.ASYNC_EXECUTOR.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS); // Paper
          } catch (java.lang.InterruptedException ignored) {} // Paper
          if (org.spigotmc.SpigotConfig.saveUserCacheOnStopOnly) {
@@ -58,7 +58,7 @@
          Util.shutdownExecutors();
          this.onServerExit();
          // Paper end - Improved watchdog support - move final shutdown items here
-@@ -1299,7 +_,7 @@
+@@ -1262,7 +_,7 @@
              this.server.spark.enableBeforePlugins(); // Paper - spark
              // Spigot start
              // Paper start
@@ -67,7 +67,7 @@
              new io.papermc.paper.threadedregions.RegionizedServerInitEvent().callEvent(); // Call Folia init event
              this.server.getScheduler().mainThreadHeartbeat(); // run all 1 tick delay tasks during init,
              // this is going to be the first thing the tick process does anyway, so move done and run it after
-@@ -1307,17 +_,18 @@
+@@ -1270,17 +_,18 @@
              // anything at 3+ won't be caught here but also will trip watchdog....
              // tasks are default scheduled at -1 + delay, and first tick will tick at 1
              final long actualDoneTimeMs = System.currentTimeMillis() - org.bukkit.craftbukkit.Main.BOOT_TIME.toEpochMilli(); // Paper - Improve startup message
@@ -92,32 +92,32 @@
              }
              // Paper end - Add onboarding message for initial server start
              // Paper start - Improve outdated version checking
-@@ -1642,6 +_,7 @@
+@@ -1609,6 +_,7 @@
          this.tickCount++;
          this.tickRateManager.tick();
-         this.tickChildren(haveTime);
+         this.tickChildren(hasTimeLeft);
 +        dev.jankypaper.server.focus.FocusManager.tick(this); // Janky Paper - focus mode
-         if (nano - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
-             this.lastServerStatus = nano;
+         if (nanos - this.lastServerStatus >= STATUS_EXPIRE_TIME_NANOS) {
+             this.lastServerStatus = nanos;
              this.status = this.buildServerStatus();
-@@ -1789,6 +_,7 @@
-         ProfilerFiller profiler = Profiler.get();
-         this.getPlayerList().getPlayers().forEach(playerx -> playerx.connection.suspendFlushing());
+@@ -1754,6 +_,7 @@
+         ProfilerFiller profilerFiller = Profiler.get();
+         this.getPlayerList().getPlayers().forEach(serverPlayer1 -> serverPlayer1.connection.suspendFlushing());
          this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit
 +        dev.jankypaper.server.bot.BotMovement.flushIfPending(); // Janky Paper - parallel bot movement - a plugin that armed bots in its tick task but never flushed them
          // Paper start - optimise Folia entity scheduler
          ((io.papermc.paper.threadedregions.scheduler.FoliaGlobalRegionScheduler)org.bukkit.Bukkit.getGlobalRegionScheduler()).tick();
          for (io.papermc.paper.threadedregions.EntityScheduler scheduler : this.entitySchedulerTickList.getAllSchedulers()) {
-@@ -1874,7 +_,7 @@
+@@ -1850,7 +_,7 @@
  
-         for (ServerPlayer player : this.playerList.getPlayers()) {
-             player.connection.chunkSender.sendNextChunks(player);
--            player.connection.resumeFlushing();
-+            if (!player.jankyBot) player.connection.resumeFlushing(); // Janky Paper - lightweight bots - a fake connection drops every packet; nothing to flush
+         for (ServerPlayer serverPlayer : this.playerList.getPlayers()) {
+             serverPlayer.connection.chunkSender.sendNextChunks(serverPlayer);
+-            serverPlayer.connection.resumeFlushing();
++            if (!serverPlayer.jankyBot) serverPlayer.connection.resumeFlushing(); // Janky Paper - lightweight bots - a fake connection drops every packet; nothing to flush
          }
  
-         profiler.pop();
-@@ -2031,7 +_,7 @@
+         profilerFiller.pop();
+@@ -2015,7 +_,7 @@
      }
  
      protected void initializeKeyPair() {
@@ -126,12 +126,12 @@
  
          try {
              this.keyPair = Crypt.generateKeyPair();
-@@ -2387,7 +_,7 @@
-                     boolean isSelected = selected.contains(packId);
-                     if (!isSelected && pack.getPackSource().shouldAddAutomatically()) {
-                         if (packFeatures.isSubsetOf(allowedFeatures)) {
--                            LOGGER.info("Found new data pack {}, loading it automatically", packId);
-+                            dev.jankypaper.server.log.JankyLog.info("Found new data pack '" + packId + "' - loading it automatically"); // Janky Paper - styled logs
-                             selected.add(packId);
+@@ -2366,7 +_,7 @@
+                     boolean flag = set.contains(id);
+                     if (!flag && pack.getPackSource().shouldAddAutomatically()) {
+                         if (requestedFeatures.isSubsetOf(featureFlagSet1)) {
+-                            LOGGER.info("Found new data pack {}, loading it automatically", id);
++                            dev.jankypaper.server.log.JankyLog.info("Found new data pack '" + id + "' - loading it automatically"); // Janky Paper - styled logs
+                             set.add(id);
                          } else {
                              LOGGER.info(

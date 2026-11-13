@@ -18,7 +18,7 @@
              loader.updateQueues(currTime);
          }
      }
-@@ -417,13 +_,23 @@
+@@ -399,13 +_,23 @@
          public PlayerChunkLoaderData(final ServerLevel world, final ServerPlayer player) {
              this.world = world;
              this.player = player;
@@ -44,7 +44,7 @@
              this.delayedTicketOps.clear();
          }
  
-@@ -433,6 +_,7 @@
+@@ -415,6 +_,7 @@
  
          private void sendChunk(final int chunkX, final int chunkZ) {
              if (this.sentChunks.add(CoordinateUtils.getChunkKey(chunkX, chunkZ))) {
@@ -52,7 +52,7 @@
                  ((ChunkSystemChunkHolder)((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager
                          .getChunkHolder(chunkX, chunkZ).vanillaChunkHolder).moonrise$addReceivedChunk(this.player);
  
-@@ -453,6 +_,7 @@
+@@ -435,6 +_,7 @@
          }
  
          private void sendUnloadChunkRaw(final int chunkX, final int chunkZ) {
@@ -60,7 +60,7 @@
              PlatformHooks.get().onChunkUnWatch(this.world, new ChunkPos(chunkX, chunkZ), this.player);
              // Note: Check PlayerChunkSender#dropChunk for other logic
              // Note: drop isAlive() check so that chunks properly unload client-side when the player dies
-@@ -583,19 +_,19 @@
+@@ -565,19 +_,19 @@
          private double getMaxChunkLoadRate() {
              final double configRate = PlatformHooks.get().configPlayerMaxLoadRate();
  
@@ -83,7 +83,7 @@
          }
  
          private long getMaxChunkLoads() {
-@@ -607,6 +_,7 @@
+@@ -589,6 +_,7 @@
              } else if (configLimit < 0L) {
                  configLimit = Integer.MAX_VALUE;
              } // else: use the value configured
@@ -91,7 +91,7 @@
              configLimit = configLimit - this.loadingQueue.size();
  
              return configLimit;
-@@ -621,6 +_,7 @@
+@@ -603,6 +_,7 @@
              } else if (configLimit < 0L) {
                  configLimit = Integer.MAX_VALUE;
              } // else: use the value configured
@@ -99,7 +99,7 @@
              configLimit = configLimit - this.generatingQueue.size();
  
              return configLimit;
-@@ -735,7 +_,7 @@
+@@ -717,7 +_,7 @@
                      final int queuedChunkX = CoordinateUtils.getChunkX(queuedLoadChunk);
                      final int queuedChunkZ = CoordinateUtils.getChunkZ(queuedLoadChunk);
                      ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
@@ -108,11 +108,11 @@
                      );
                      if (this.removed) {
                          return;
-@@ -835,6 +_,7 @@
+@@ -818,6 +_,7 @@
              }
  
              // try to pull sending chunks
 +            if (this.jankyBot) while (!this.sendQueue.isEmpty()) this.sentChunks.add(this.sendQueue.dequeueLong()); // Janky Paper - lightweight bots - no client: mark them sent at once, no rate limit, neighbour wait or post-processing
-             final long maxSends = Math.max(0L, Math.min(MAX_RATE, Math.min(this.sendQueue.size(), Integer.MAX_VALUE))); // note: no logic to track concurrent sends
-             final long maxSendsThisTick = this.chunkSendLimiter.takeAllocation(maxSends);
+             final long maxSends = Math.max(0L, Math.min(MAX_RATE, Integer.MAX_VALUE)); // note: no logic to track concurrent sends
+             final int maxSendsThisTick = Math.min((int)this.chunkSendLimiter.takeAllocation(time, sendRate, maxSends), this.sendQueue.size());
              // we do not return sends that we took from the allocation back because we want to limit the max send rate, not target it

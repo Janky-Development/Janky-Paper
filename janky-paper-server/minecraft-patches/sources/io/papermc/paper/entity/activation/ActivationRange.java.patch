@@ -24,7 +24,7 @@
 +            final double focusScale = dev.jankypaper.server.focus.FocusManager.activationScale(player); // Janky Paper - focus mode
 +            // Janky Paper start - lightweight bots: unfocused bots are activated in one pass over the chunks around them, below
 +            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot && !dev.jankypaper.server.focus.FocusManager.isFocused(player)) {
-+                jankyBotChunks.add(player.chunkPosition().longKey());
++                jankyBotChunks.add(player.chunkPosition().toLong());
 +                jankyBotScale = focusScale;
 +                continue;
 +            }

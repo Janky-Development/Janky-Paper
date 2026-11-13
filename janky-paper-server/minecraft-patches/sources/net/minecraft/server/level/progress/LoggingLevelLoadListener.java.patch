@@ -4,7 +4,7 @@
                  case PREPARE_GLOBAL_SPAWN:
                      // Paper start - log dimension
                      if (this.level != null) {
--                        LOGGER.info("Selecting spawn point for level '{}'...", this.level.dimension().identifier());
+-                        LOGGER.info("Selecting spawn point for world '{}'...", this.level.dimension().identifier());
 +                        dev.jankypaper.server.log.JankyLog.info("Selecting spawn point for " + this.level.dimension().identifier() + "..."); // Janky Paper - styled logs
                      } else {
                      LOGGER.info("Selecting global world spawn...");
@@ -12,7 +12,7 @@
                      break;
                  case LOAD_INITIAL_CHUNKS:
                      if (this.level != null) {
--                        LOGGER.info("Loading {} persistent chunks for level '{}'...", totalChunks, this.level.dimension().identifier());
+-                        LOGGER.info("Loading {} persistent chunks for world '{}'...", totalChunks, this.level.dimension().identifier());
 +                        dev.jankypaper.server.log.JankyLog.info("Loading " + totalChunks + " spawn chunks for " + this.level.dimension().identifier() + "..."); // Janky Paper - styled logs
                      } else {
                      LOGGER.info("Loading {} persistent chunks...", totalChunks);
@@ -20,16 +20,16 @@
 @@ -74,7 +_,7 @@
              if (Util.getMillis() > this.nextLogTime) {
                  this.nextLogTime += 500L;
-                 int percent = Mth.floor(this.progressTracker.get() * 100.0F);
--                LOGGER.info(Component.translatable("menu.preparingSpawn", percent).getString());
-+                dev.jankypaper.server.log.JankyLog.info("Preparing spawn area: " + percent + "%"); // Janky Paper - styled logs
+                 int floor = Mth.floor(this.progressTracker.get() * 100.0F);
+-                LOGGER.info(Component.translatable("menu.preparingSpawn", floor).getString());
++                dev.jankypaper.server.log.JankyLog.info("Preparing spawn area: " + floor + "%"); // Janky Paper - styled logs
              }
          }
      }
 @@ -87,7 +_,7 @@
                  ? LevelLoadListener.Stage.LOAD_PLAYER_CHUNKS
                  : LevelLoadListener.Stage.LOAD_INITIAL_CHUNKS;
-             if (stage == finalStage) {
+             if (stage == stage1) {
 -                LOGGER.info("Prepared spawn area in {} ms", Util.getMillis() - this.startTime); // Paper
 +                dev.jankypaper.server.log.JankyLog.success("Spawn area ready in " + (Util.getMillis() - this.startTime) + " ms"); // Paper // Janky Paper - styled logs
                  this.nextLogTime = Long.MAX_VALUE;

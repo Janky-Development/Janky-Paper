@@ -1,15 +1,15 @@
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -248,7 +_,7 @@
-         consoleThread.setDaemon(true);
-         consoleThread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
-         // consoleThread.start(); // Paper - Enhance console tab completions for brigadier commands; moved down
+@@ -226,7 +_,7 @@
+         thread.setDaemon(true);
+         thread.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
+         // thread.start(); // Paper - Enhance console tab completions for brigadier commands; moved down
 -        LOGGER.info("Starting minecraft server version {}", SharedConstants.getCurrentVersion().name());
 +        dev.jankypaper.server.log.JankyLog.highlight("Starting " + dev.jankypaper.server.log.JankyLog.NAME + " for Minecraft " + SharedConstants.getCurrentVersion().name()); // Janky Paper - styled logs
          if (Runtime.getRuntime().maxMemory() / 1024L / 1024L < 512L) {
              LOGGER.warn("To start the server with more ram, launch it as \"java -Xmx1024M -Xms1024M -jar minecraft_server.jar\"");
          }
-@@ -263,7 +_,7 @@
+@@ -241,7 +_,7 @@
          }
          // Paper end - detect running as root
  
@@ -18,9 +18,9 @@
          DedicatedServerProperties properties = this.settings.getProperties();
          if (this.isSingleplayer()) {
              this.setLocalIp("127.0.0.1");
-@@ -292,12 +_,13 @@
+@@ -271,12 +_,13 @@
          org.spigotmc.WatchdogThread.doStart(org.spigotmc.SpigotConfig.timeoutTime, org.spigotmc.SpigotConfig.restartOnCrash); // Paper - start watchdog thread
-         consoleThread.start(); // Paper - Enhance console tab completions for brigadier commands; start console thread after MinecraftServer.console & PaperConfig are initialized
+         thread.start(); // Paper - Enhance console tab completions for brigadier commands; start console thread after MinecraftServer.console & PaperConfig are initialized
          io.papermc.paper.command.PaperCommands.registerCommands(this); // Paper - setup /paper command
 +        dev.jankypaper.server.focus.FocusManager.init(((java.io.File) this.options.valueOf("paper-settings-directory")).toPath()); // Janky Paper - focus mode
          this.server.spark.registerCommandBeforePlugins(this.server); // Paper - spark
@@ -33,7 +33,7 @@
          // Paper start - Unix domain socket support
          java.net.SocketAddress bindAddress;
          if (this.getLocalIp().startsWith("unix:")) {
-@@ -325,7 +_,7 @@
+@@ -304,7 +_,7 @@
          // Paper end - Unix domain socket support
  
          this.initializeKeyPair();
@@ -42,17 +42,17 @@
  
          try {
              this.getConnection().startTcpServerListener(bindAddress); // Paper - Unix domain socket support
-@@ -378,11 +_,11 @@
+@@ -357,11 +_,11 @@
              this.tickTimeLogger = new RemoteSampleLogger(TpsDebugDimensions.values().length, this.debugSubscribers(), RemoteDebugSampleType.TICK_TIME);
-             long levelNanoTime = Util.getNanos();
+             long nanos = Util.getNanos();
              this.services.nameToIdCache().resolveOfflineUsers(!this.usesAuthentication());
 -            LOGGER.info("Preparing level \"{}\"", this.getLevelIdName());
 +            dev.jankypaper.server.log.JankyLog.info("Preparing level \"" + this.getLevelIdName() + "\""); // Janky Paper - styled logs
              this.loadLevel(this.storageSource.getLevelId()); // CraftBukkit
-             long elapsed = Util.getNanos() - levelNanoTime;
-             String time = String.format(Locale.ROOT, "%.3fs", elapsed / 1.0E9);
--            LOGGER.info("Done preparing level \"{}\" ({})", this.getLevelIdName(), time); // Paper - Improve startup message, add total time
-+            dev.jankypaper.server.log.JankyLog.success("Level \"" + this.getLevelIdName() + "\" ready in " + time); // Paper - Improve startup message, add total time // Janky Paper - styled logs
+             long l = Util.getNanos() - nanos;
+             String string3 = String.format(Locale.ROOT, "%.3fs", l / 1.0E9);
+-            LOGGER.info("Done preparing level \"{}\" ({})", this.getLevelIdName(), string3); // Paper - Improve startup message, add total time
++            dev.jankypaper.server.log.JankyLog.success("Level \"" + this.getLevelIdName() + "\" ready in " + string3); // Paper - Improve startup message, add total time // Janky Paper - styled logs
              this.initPostWorld(); // Paper - don't include plugins in world preparation time
              if (properties.announcePlayerAchievements != null) {
-                 this.getAllLevels().forEach(l -> l.getGameRules().set(GameRules.SHOW_ADVANCEMENT_MESSAGES, properties.announcePlayerAchievements, this.overworld())); // Paper - per-world game rules
+                 this.worldData.getGameRules().set(GameRules.SHOW_ADVANCEMENT_MESSAGES, properties.announcePlayerAchievements, this.overworld()); // Paper - per-world game rules

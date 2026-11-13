@@ -382,7 +382,7 @@ public final class PlayerGrid {
                 return false;
             }
             final net.minecraft.world.level.ChunkPos at = player.chunkPosition();
-            if (Math.abs(at.x() - chunkX) > trackRange || Math.abs(at.z() - chunkZ) > trackRange) {
+            if (Math.abs(at.x - chunkX) > trackRange || Math.abs(at.z - chunkZ) > trackRange) {
                 return false; // outside the square the spawn-range map tracks
             }
             final double blockRange = (double)((event.getSpawnRadius() << 4) * (event.getSpawnRadius() << 4));

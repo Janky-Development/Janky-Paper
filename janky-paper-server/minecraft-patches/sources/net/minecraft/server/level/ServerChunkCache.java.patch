@@ -1,21 +1,21 @@
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
-@@ -542,6 +_,7 @@
+@@ -535,6 +_,7 @@
          if ((this.spawnFriendlies || this.spawnEnemies) && this.level.paperConfig().entities.spawning.perPlayerMobSpawns) { // don't count mobs when animals and monsters are disabled
              // re-set mob counts
-             for (ServerPlayer player : this.level.players()) {
+             for (ServerPlayer player : this.level.players) {
 +                if (!player.jankyMobCapTracked) continue; // Janky Paper - lightweight bots - not in the mob cap map: its counts are never read or written
                  // Paper start - per player mob spawning backoff
-                 for (int j = 0; j < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; j++) {
-                     player.mobCounts[j] = 0;
-@@ -566,8 +_,10 @@
-         if (doMobSpawning && (this.spawnEnemies || this.spawnFriendlies)) { // Paper
+                 for (int ii = 0; ii < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; ii++) {
+                     player.mobCounts[ii] = 0;
+@@ -559,8 +_,10 @@
+         if (flag && (this.spawnEnemies || this.spawnFriendlies)) { // Paper
              // Paper start - PlayerNaturallySpawnCreaturesEvent
-             for (ServerPlayer player : this.level.players()) {
-+                if (player.jankyBot && player.playerNaturallySpawnedEvent != null && !player.playerNaturallySpawnedEvent.isCancelled() && (net.minecraft.server.MinecraftServer.currentTick + player.getId()) % 20 != 0) continue; // Janky Paper - lightweight bots - a bot's view distance rarely changes: re-check its spawn radius once a second
-                 int chunkRange = Math.min(level.spigotConfig.mobSpawnRange, player.getBukkitEntity().getViewDistance());
+             for (ServerPlayer entityPlayer : this.level.players()) {
++                if (entityPlayer.jankyBot && entityPlayer.playerNaturallySpawnedEvent != null && !entityPlayer.playerNaturallySpawnedEvent.isCancelled() && (net.minecraft.server.MinecraftServer.currentTick + entityPlayer.getId()) % 20 != 0) continue; // Janky Paper - lightweight bots - a bot's view distance rarely changes: re-check its spawn radius once a second
+                 int chunkRange = Math.min(level.spigotConfig.mobSpawnRange, entityPlayer.getBukkitEntity().getViewDistance());
                  chunkRange = Math.min(chunkRange, 8);
-+                if (player.jankyBot && player.playerNaturallySpawnedEvent != null && player.playerNaturallySpawnedEvent.getSpawnRadius() == chunkRange && !player.playerNaturallySpawnedEvent.isCancelled()) continue; // Janky Paper - lightweight bots - keep the bot's spawn radius, skip firing an event per bot per tick
-                 player.playerNaturallySpawnedEvent = new com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent(player.getBukkitEntity(), (byte) chunkRange);
-                 player.playerNaturallySpawnedEvent.callEvent();
++                if (entityPlayer.jankyBot && entityPlayer.playerNaturallySpawnedEvent != null && entityPlayer.playerNaturallySpawnedEvent.getSpawnRadius() == chunkRange && !entityPlayer.playerNaturallySpawnedEvent.isCancelled()) continue; // Janky Paper - lightweight bots - keep the bot's spawn radius, skip firing an event per bot per tick
+                 entityPlayer.playerNaturallySpawnedEvent = new com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent(entityPlayer.getBukkitEntity(), (byte) chunkRange);
+                 entityPlayer.playerNaturallySpawnedEvent.callEvent();
              }

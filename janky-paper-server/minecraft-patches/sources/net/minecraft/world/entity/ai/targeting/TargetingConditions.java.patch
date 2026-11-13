@@ -15,6 +15,6 @@
 +    }
 +    // Janky Paper end - lightweight bots
 +
-     public boolean test(final ServerLevel level, final @Nullable LivingEntity targeter, final LivingEntity target) {
-         if (targeter == target) {
+     public boolean test(ServerLevel level, @Nullable LivingEntity entity, LivingEntity target) {
+         if (entity == target) {
              return false;

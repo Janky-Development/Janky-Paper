@@ -183,8 +183,8 @@ public final class FocusManager {
             return false;
         }
         final String world = player.level().getWorld().getName();
-        final int chunkX = player.chunkPosition().x();
-        final int chunkZ = player.chunkPosition().z();
+        final int chunkX = player.chunkPosition().x;
+        final int chunkZ = player.chunkPosition().z;
         for (final FocusArea area : areas) {
             if (area.contains(world, chunkX, chunkZ)) {
                 return true;

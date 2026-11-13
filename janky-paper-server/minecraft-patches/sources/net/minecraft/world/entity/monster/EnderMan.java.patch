@@ -3,7 +3,7 @@
 @@ -219,6 +_,7 @@
      }
  
-     private boolean isBeingStaredBy(final Player player) {
+     boolean isBeingStaredBy(Player player) {
 +        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot) return false; // Janky Paper - lightweight bots - a bot never provokes an enderman by looking at it
          // Paper start - EndermanAttackPlayerEvent
          final boolean shouldAttack = this.isBeingStaredBy0(player);
