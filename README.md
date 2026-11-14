@@ -74,7 +74,8 @@ Paper's changes are patches on top of it.
 
 Download it from the [GitHub releases](https://github.com/Janky-Development/Janky-Paper/releases). There's a
 `janky-paper-<minecraft version>-<release>.jar` for every supported Minecraft version (see
-[Releases](#releases)). Or build it yourself (see [Developing Janky Paper](#developing-janky-paper)):
+[Releases](#releases)). Jars from anywhere else are unofficial, and the Janky Paper developers aren't
+responsible for them (see [License](#license)). Or build it yourself (see [Developing Janky Paper](#developing-janky-paper)):
 
 ```bash
 ./gradlew applyAllPatches
@@ -922,6 +923,12 @@ Paper contributors.
     CamerG1011 as a coder and contributor ([Credits](#credits)).
   - **Name:** the name "Janky Paper" and its branding aren't licensed for forks. A modified version you
     share needs its own name and must say it's based on Janky Paper.
+- **Unofficial builds:** the Janky Paper developers (Pepe-tf, CamerG1011 and every contributor) are not
+  responsible for unofficial builds, forks, modified versions or redistributed copies of Janky Paper, or for
+  anything that happens if you choose to download or run one. That's at your own risk, and whoever publishes it
+  is responsible for it. Only the [GitHub releases](https://github.com/Janky-Development/Janky-Paper/releases)
+  and jars you build from this repository are official. See
+  [NOTICE.md](NOTICE.md#unofficial-builds-forks-and-redistributions).
 
 Janky Paper is not affiliated with Mojang Studios, Microsoft or PaperMC, and does not distribute Minecraft. The
 jar downloads the official server on first start, and running it means accepting the
