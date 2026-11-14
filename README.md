@@ -17,7 +17,7 @@ content-creation servers**. It is tuned for two jobs that stock Paper handles po
 Everything else behaves like Paper: same plugins, same configs, same `latest.log` format. It is built
 with [paperweight](https://github.com/PaperMC/paperweight) (the tooling Paper and Folia use) - nothing
 from Paper is vendored; Paper is pulled in at the commit pinned in `gradle.properties` and Janky
-Paper's changes are patches on top of it.
+Paper's changes are patches on top of it. 
 
 | | |
 |---|---|
