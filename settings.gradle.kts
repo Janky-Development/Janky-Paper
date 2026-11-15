@@ -18,8 +18,8 @@ rootProject.name = "janky-paper"
 include("janky-paper-api")
 include("janky-paper-server")
 
-// Janky Paper - plugins parse Bukkit.getBukkitVersion() expecting Paper's "<mc>.build.<n>-<channel>" shape
-// (ItemEdit, voicechat, NBT-API, ...); "<mc>.local-SNAPSHOT" makes them fail or fall back to degraded modes.
+// Janky Paper - plugins parse Paper's version strings ("<mc>.build.<n>-<channel>" from 26.1 on; on 1.21.11 the API
+// version is "<mc>-R0.1-SNAPSHOT", see below); "<mc>.local-SNAPSHOT" makes them fail or fall back to degraded modes.
 // Without BUILD_NUMBER the git commit count numbers the build, so locally built jars look like releases too.
 // (Everything stays inside the action: isolated project actions may not reference the settings script.)
 gradle.lifecycle.beforeProject {
@@ -45,4 +45,12 @@ gradle.lifecycle.beforeProject {
     } else {
         "$mcVersion.build.$buildNumber-${versionChannel.lowercase()}"
     }
+    // Janky Paper start - on 1.21.11, Paper's Bukkit.getBukkitVersion() is "1.21.11-R0.1-SNAPSHOT" (the "<mc>.build.<n>"
+    // shape only exists from 26.1 on). Plugins with per-version tables reject anything else here: Simple Voice Chat
+    // logged "Incompatible version 1.21.11.build.12-alpha" and fell back to its degraded Spigot API mode. The API
+    // version (apiVersioning.json) is taken from janky-paper-api's project version; the server jar keeps the build number.
+    if (name == "janky-paper-api") {
+        version = "$mcVersion-R0.1-SNAPSHOT"
+    }
+    // Janky Paper end
 }
