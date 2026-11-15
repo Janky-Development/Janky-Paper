@@ -1,6 +1,6 @@
 --- a/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java
 +++ b/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java
-@@ -66,11 +_,13 @@
+@@ -65,11 +_,13 @@
              return;
          }
          startupMigrationWarningShown = true;

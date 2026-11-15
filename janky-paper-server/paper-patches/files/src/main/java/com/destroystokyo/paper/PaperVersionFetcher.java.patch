@@ -1,45 +1,23 @@
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-@@ -71,7 +_,7 @@
-         if (buildNumber.isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
-             COMPONENT_LOGGER.warn(text("*** You are running a development version without access to version information ***"));
-         } else {
--            final Optional<MinecraftVersionFetcher> apiResult = fetchMinecraftVersionList();
-+            final Optional<MinecraftVersionFetcher> apiResult = Optional.empty(); // Janky Paper - no update API: only used to word an update notice, which a fork never gets
-             if (buildNumber.isPresent()) {
-                 distance = fetchDistanceFromSiteApi(buildNumber.getAsInt());
-             } else {
-@@ -92,7 +_,7 @@
-                     COMPONENT_LOGGER.warn(text(DOWNLOAD_PAGE));
-                     COMPONENT_LOGGER.warn(text("*************************************************************************************"));
-                 });
--                case DISTANCE_UNKNOWN -> COMPONENT_LOGGER.warn(text("*** You are running an unknown version! Cannot fetch version info ***"));
-+                case DISTANCE_UNKNOWN -> dev.jankypaper.server.log.JankyLog.warn("Development build - update checks are unavailable for this version"); // Janky Paper - styled logs
-                 default -> {
-                     if (apiResult.isPresent()) {
-                         COMPONENT_LOGGER.warn(text("*** You are running an outdated version of Minecraft, which is " + apiResult.get().distance() + " release(s) and " + distance + " build(s) behind!"));
-@@ -123,7 +_,7 @@
-         return switch (distance) {
-             case DISTANCE_ERROR -> text("Error obtaining version information", NamedTextColor.YELLOW);
-             case 0 -> text("You are running the latest version", NamedTextColor.GREEN);
--            case DISTANCE_UNKNOWN -> text("Unknown version", NamedTextColor.YELLOW);
-+            case DISTANCE_UNKNOWN -> text("Janky Paper build - update checks are not available", NamedTextColor.YELLOW); // Janky Paper - no update API
-             default -> text("You are " + distance + " version(s) behind", NamedTextColor.YELLOW)
-                 .append(Component.newline())
-                 .append(text("Download the new version at: ")
-@@ -193,6 +_,7 @@
+@@ -53,6 +_,12 @@
+ 
+     @Override
+     public Component getVersionMessage() {
++        // Janky Paper start - branded /version card; update check against the Janky Paper repository instead of PaperMC's
++        if (true) {
++            final VersionHistoryManager.@Nullable VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
++            return dev.jankypaper.server.version.JankyVersion.versionMessage(data != null ? data.getOldVersion() : null);
++        }
++        // Janky Paper end - branded /version card
+         final Component updateMessage;
+         if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
+             updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
+@@ -65,6 +_,7 @@
      }
  
-     private static int fetchDistanceFromSiteApi(final int jenkinsBuild) {
-+        if (true) return DISTANCE_UNKNOWN; // Janky Paper - no update API: a Janky build number means nothing to Paper's downloads API
-         try {
-             final URL buildsUrl = URI.create("https://fill.papermc.io/v3/projects/paper/versions/" + PaperVersionFetcher.BUILD_INFO.minecraftVersionId() + "/builds").toURL();
-             final HttpURLConnection connection = (HttpURLConnection) buildsUrl.openConnection();
-@@ -219,6 +_,7 @@
+     public static void getUpdateStatusStartupMessage() {
++        if (true) { dev.jankypaper.server.version.JankyVersion.logStartupStatus(); return; } // Janky Paper - check the Janky Paper repository, not PaperMC's downloads API
+         int distance = DISTANCE_ERROR;
  
-     // Contributed by Techcable <Techcable@outlook.com> in GH-65
-     private static int fetchDistanceFromGitHub(final String branch, final String hash) {
-+        if (true) return DISTANCE_UNKNOWN; // Janky Paper - no update API: Janky commits don't exist in PaperMC/Paper (GitHub answered 404, or 403 once rate-limited, which logged a stack trace)
-         try {
-             final HttpURLConnection connection = (HttpURLConnection) URI.create("https://api.github.com/repos/%s/compare/%s...%s".formatted(PaperVersionFetcher.REPOSITORY, branch, hash)).toURL().openConnection();
-             connection.setConnectTimeout(5000);
+         final OptionalInt buildNumber = BUILD_INFO.buildNumber();
