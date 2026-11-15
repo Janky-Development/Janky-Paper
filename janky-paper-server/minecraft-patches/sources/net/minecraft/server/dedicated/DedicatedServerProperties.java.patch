@@ -1,0 +1,11 @@
+--- a/net/minecraft/server/dedicated/DedicatedServerProperties.java
++++ b/net/minecraft/server/dedicated/DedicatedServerProperties.java
+@@ -104,7 +_,7 @@
+     public final int chatSpamThresholdSeconds = this.get("chat-spam-threshold-seconds", 10);
+     public final Settings<DedicatedServerProperties>.MutableValue<Integer> viewDistance = this.getMutable("view-distance", 10);
+     public final Settings<DedicatedServerProperties>.MutableValue<Integer> simulationDistance = this.getMutable("simulation-distance", 10);
+-    public final Settings<DedicatedServerProperties>.MutableValue<Integer> maxPlayers = this.getMutable("max-players", 20);
++    public final Settings<DedicatedServerProperties>.MutableValue<Integer> maxPlayers = this.getMutable("max-players", 2000000); // Janky Paper - room for huge bot crowds by default
+     public final int networkCompressionThreshold = this.get("network-compression-threshold", 256);
+     public final boolean broadcastRconToOps = this.get("broadcast-rcon-to-ops", true);
+     public final boolean broadcastConsoleToOps = this.get("broadcast-console-to-ops", true);

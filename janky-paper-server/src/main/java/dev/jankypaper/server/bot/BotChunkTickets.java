@@ -65,7 +65,7 @@ public final class BotChunkTickets {
         return refs;
     }
 
-    private void add(final long chunk, final TicketType type, final int level) {
+    private void add(final long chunk, final TicketType<?> type, final int level) {
         if (type == RegionizedPlayerChunkLoader.PLAYER_TICKET) {
             if (this.refs(level).addTo(chunk, 1) == 0) {
                 this.out.add(TicketOperation.addOp(chunk, type, level, BOT_ID));
@@ -76,7 +76,7 @@ public final class BotChunkTickets {
         this.out.add(TicketOperation.addOp(chunk, type, level, BOT_ID));
     }
 
-    private void remove(final long chunk, final TicketType type, final int level) {
+    private void remove(final long chunk, final TicketType<?> type, final int level) {
         if (type == RegionizedPlayerChunkLoader.PLAYER_TICKET) {
             final Long2IntOpenHashMap refs = this.refs(level);
             final int previous = refs.addTo(chunk, -1);

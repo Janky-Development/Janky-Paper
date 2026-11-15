@@ -54,6 +54,18 @@
      options.use()
      options.isDocFilesSubDirs = true
      options.links(
+@@ -214,6 +_,11 @@
+         "https://www.javadocs.dev/org.apache.maven.resolver/maven-resolver-api/1.7.3",
+     )
+     options.tags(projectCustomJavadocTags.map { it.toOptionString() })
++    // Janky Paper start - quiet javadoc: Paper's API has ~12k members without doc comments ("missing" group), which
++    // drowned every real warning. doclint still checks html/syntax/references; linked gson/adventure docs are modular.
++    options.addBooleanOption("Xdoclint:all,-missing", true)
++    options.addStringOption("-link-modularity-mismatch", "info")
++    // Janky Paper end - quiet javadoc
+ 
+     inputs.files(javadocSourcepath).ignoreEmptyDirectories().withPropertyName(javadocSourcepath.name + "-configuration")
+     val javadocSourcepathElements = javadocSourcepath.elements
 @@ -225,11 +_,11 @@
      }
  
@@ -68,3 +80,11 @@
                  include("**/doc-files/**")
              }
              into("build/docs/javadoc")
+@@ -244,6 +_,7 @@
+     val provider = objects.newInstance<MockitoAgentProvider>()
+     provider.fileCollection.from(mockitoAgent)
+     jvmArgumentProviders.add(provider)
++    jvmArgs("-Xshare:off") // Janky Paper - the agent appends to the boot class path, so CDS only warns ("Sharing is only supported for boot loader classes")
+ }
+ 
+ // Compile tests with -parameters for better junit parameterized test names

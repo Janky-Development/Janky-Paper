@@ -11,7 +11,7 @@
 +    /** Registration-ordered copy iterated by Netty threads; rebuilt under the LISTENERS lock on every change. */
 +    private static volatile Map.Entry<Key, ChannelInitializeListener>[] SNAPSHOT = newSnapshot(Collections.emptyMap());
 +
-+    @SuppressWarnings("unchecked")
++    @SuppressWarnings({"unchecked", "rawtypes"}) // generic array creation
 +    private static Map.Entry<Key, ChannelInitializeListener>[] newSnapshot(final Map<Key, ChannelInitializeListener> listeners) {
 +        final Map.Entry<Key, ChannelInitializeListener>[] snapshot = new Map.Entry[listeners.size()];
 +        int i = 0;

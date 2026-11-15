@@ -90,6 +90,14 @@
              "Build-Number" to (build ?: ""),
              "Build-Time" to buildTime.toString(),
              "Git-Branch" to gitBranch,
+@@ -250,6 +_,7 @@
+ 
+     // Hides repeated jline/joml warnings due to forking
+     jvmArgs("--enable-native-access=ALL-UNNAMED")
++    jvmArgs("-Xshare:off") // Janky Paper - the mockito agent appends to the boot class path, so CDS only warns ("Sharing is only supported for boot loader classes")
+     systemProperty("joml.nounsafe", true)
+ }
+ 
 @@ -259,7 +_,7 @@
      )
  }
