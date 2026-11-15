@@ -67,8 +67,10 @@ public final class BotPlayers {
     private static volatile double distantUpdateRangeSq = 64.0 * 64.0;
     private static int online;
 
-    // UUIDs a fake-player plugin announced (expectBot) right before constructing the bot's ServerPlayer
-    private static final java.util.Set<java.util.UUID> expected = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    // UUIDs a fake-player plugin announced (expectBot) right before constructing the bot's ServerPlayer, with when.
+    // An announced bot that never got placed (its spawn failed) expires instead of staying forever.
+    private static final java.util.Map<java.util.UUID, Long> expected = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long EXPECTED_TTL_MILLIS = 60_000L;
 
     /** {@link #realPlayers} snapshot of one source list: at which tick and size it was built. Immutable, so any thread may read it. */
     private record RealPlayers(int tick, int size, List<ServerPlayer> players) {
@@ -120,12 +122,27 @@ public final class BotPlayers {
      */
     public static void expectBot(final java.util.UUID id) {
         if (enabled && id != null) {
-            expected.add(id);
+            final long now = System.currentTimeMillis();
+            if (expected.size() > 256) {
+                expected.values().removeIf(at -> now - at > EXPECTED_TTL_MILLIS);
+            }
+            expected.put(id, now);
         }
     }
 
     public static boolean isExpectedBot(final java.util.UUID id) {
-        return enabled && !expected.isEmpty() && expected.contains(id);
+        if (!enabled || expected.isEmpty()) {
+            return false;
+        }
+        final Long at = expected.get(id);
+        if (at == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() - at > EXPECTED_TTL_MILLIS) {
+            expected.remove(id);
+            return false;
+        }
+        return true;
     }
 
     /** Called from {@code PlayerList#placeNewPlayer} before the player is added to its world. */

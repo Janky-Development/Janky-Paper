@@ -1,0 +1,11 @@
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -183,7 +_,7 @@
+         @Comment("This setting controls if the vanilla damage tick should be skipped if damage was blocked via a shield.")
+         public boolean skipVanillaDamageTickWhenShieldBlocked = false;
+         @Comment("This setting controls if equipment should be updated when handling certain player actions.")
+-        public boolean updateEquipmentOnPlayerActions = true;
++        public boolean updateEquipmentOnPlayerActions = false; // Janky Paper - off by default
+         @Comment("This setting controls what item data components don't need to be sanitized in oversized item obfuscation. Adding them re-enables exploits, but may be needed for certain resource packs. (Expected: minecraft:container, minecraft:charged_projectiles and minecraft:bundle_contents)")
+         public OversizedItemComponentSanitizer.AssetOversizedItemComponentSanitizerConfiguration oversizedItemComponentSanitizer = new OversizedItemComponentSanitizer.AssetOversizedItemComponentSanitizerConfiguration(Set.of());
+     }
