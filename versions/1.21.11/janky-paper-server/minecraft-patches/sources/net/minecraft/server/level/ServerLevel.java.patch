@@ -1,0 +1,71 @@
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -196,6 +_,7 @@
+     public final net.minecraft.world.level.storage.PrimaryLevelData serverLevelData; // CraftBukkit - type
+     final EntityTickList entityTickList = new EntityTickList();
+     private final ServerWaypointManager waypointManager;
++    public final dev.jankypaper.server.bot.PlayerGrid jankyPlayerGrid = new dev.jankypaper.server.bot.PlayerGrid(this); // Janky Paper - lightweight bots - nearest-player searches
+     private final EnvironmentAttributeSystem environmentAttributes;
+     // Paper - rewrite chunk system
+     private final GameEventDispatcher gameEventDispatcher;
+@@ -1132,7 +_,7 @@
+     }
+ 
+     public void updateSleepingPlayerList() {
+-        if (!this.players.isEmpty() && this.sleepStatus.update(this.players)) {
++        if (!this.players.isEmpty() && this.sleepStatus.update(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.players))) { // Janky Paper - lightweight bots - bots never sleep; they must not block skipping the night
+             this.announceSleepStatus();
+         }
+     }
+@@ -1722,6 +_,7 @@
+     public void playSeededSound(
+         @Nullable Entity entity, double x, double y, double z, Holder<SoundEvent> sound, SoundSource source, float volume, float pitch, long seed
+     ) {
++        if (dev.jankypaper.server.bot.BotMovement.deferWorldEffect(() -> this.playSeededSound(entity, x, y, z, sound, source, volume, pitch, seed))) return; // Janky Paper - parallel bot movement - a bot's step sound during the parallel phase is broadcast on the main thread afterwards
+         this.server
+             .getPlayerList()
+             .broadcast(
+@@ -1739,6 +_,7 @@
+     public void playSeededSound(
+         @Nullable Entity entity, Entity sourceEntity, Holder<SoundEvent> sound, SoundSource source, float volume, float pitch, long seed
+     ) {
++        if (dev.jankypaper.server.bot.BotMovement.deferWorldEffect(() -> this.playSeededSound(entity, sourceEntity, sound, source, volume, pitch, seed))) return; // Janky Paper - parallel bot movement
+         this.server
+             .getPlayerList()
+             .broadcast(
+@@ -1797,6 +_,7 @@
+ 
+     @Override
+     public void gameEvent(Holder<GameEvent> gameEvent, Vec3 pos, GameEvent.Context context) {
++        if (dev.jankypaper.server.bot.BotMovement.deferWorldEffect(() -> this.gameEvent(gameEvent, pos, context))) return; // Janky Paper - parallel bot movement - a bot's step event during the parallel phase is posted on the main thread afterwards
+         // Paper start - Prevent GameEvents being fired from unloaded chunks
+         if (this.getChunkIfLoadedImmediately((Mth.floor(pos.x) >> 4), (Mth.floor(pos.z) >> 4)) == null) {
+             return;
+@@ -2095,8 +_,10 @@
+         );
+         int i = 0;
+ 
+-        for (int i1 = 0; i1 < receivers.size(); i1++) { // Paper - particle API
+-            ServerPlayer serverPlayer = receivers.get(i1); // Paper - particle API
++        final List<ServerPlayer> jankyReceivers = receivers == this.players ? dev.jankypaper.server.bot.BotPlayers.realPlayers(receivers) : receivers; // Janky Paper - lightweight bots - a sprinting bot's particles must not loop over every bot
++        for (int i1 = 0; i1 < jankyReceivers.size(); i1++) { // Paper - particle API
++            ServerPlayer serverPlayer = jankyReceivers.get(i1); // Paper - particle API // Janky Paper - lightweight bots
++            if (serverPlayer.jankyBot) continue; // Janky Paper - lightweight bots
+             if (sender != null && !serverPlayer.getBukkitEntity().canSee(sender.getBukkitEntity())) continue; // CraftBukkit
+             if (this.sendParticles(serverPlayer, overrideLimiter, x, y, z, clientboundLevelParticlesPacket)) {
+                 i++;
+@@ -2205,10 +_,14 @@
+             .findClosestBiome3d(pos, radius, horizontalStep, verticalStep, biomePredicate, this.getChunkSource().randomState().sampler(), this);
+     }
+ 
++    private @Nullable WorldBorder jankyWorldBorder; // Janky Paper - cached world border
++
+     @Override
+     public WorldBorder getWorldBorder() {
++        final WorldBorder jankyCached = this.jankyWorldBorder; if (jankyCached != null) return jankyCached; // Janky Paper - cached world border - every entity move's collision check looked it up in the saved-data map
+         WorldBorder worldBorder = this.getDataStorage().computeIfAbsent(WorldBorder.TYPE);
+         worldBorder.applyInitialSettings(this.levelData.getGameTime());
++        this.jankyWorldBorder = worldBorder; // Janky Paper - cached world border (the saved-data entry is created once per level)
+         return worldBorder;
+     }
+ 

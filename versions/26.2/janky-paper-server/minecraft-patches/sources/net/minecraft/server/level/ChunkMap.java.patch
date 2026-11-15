@@ -1,0 +1,37 @@
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -720,6 +_,7 @@
+ 
+         final ServerPlayer[] raw = players.getRawDataUnchecked();
+         final int len = players.size();
++        if (len > dev.jankypaper.server.bot.PlayerGrid.MIN_PLAYERS && dev.jankypaper.server.bot.PlayerGrid.useFor(this.level)) return dev.jankypaper.server.bot.PlayerGrid.isChunkNearSpawningPlayer(this.level, chunkPos.x(), chunkPos.z()); // Janky Paper - player grid - a crowd's edge chunks walked every bot
+ 
+         Objects.checkFromIndexSize(0, len, raw.length);
+         for (int i = 0; i < len; ++i) {
+@@ -1011,11 +_,11 @@
+                 // note: the tick loop is OK when adding entities
+                 this.trackerEntities.add(entity);
+                 // Paper end - optimise entity tracker
+-                trackedEntity.updatePlayers(this.level.players());
++                trackedEntity.updatePlayers(dev.jankypaper.server.bot.BotPlayers.realPlayers(this.level.players())); // Janky Paper - lightweight bots - a new entity is only offered to real viewers
+                 if (entity instanceof ServerPlayer player) {
+                     this.updatePlayerStatus(player, true);
+ 
+-                    for (ChunkMap.TrackedEntity e : this.entityMap.values()) {
++                    if (!player.jankyBot) for (ChunkMap.TrackedEntity e : this.entityMap.values()) { // Janky Paper - lightweight bots - a bot views nothing, skip offering it every entity
+                         if (e.entity != player) {
+                             e.updatePlayer(player);
+                         }
+@@ -1378,6 +_,12 @@
+ 
+         public void updatePlayer(final ServerPlayer player) {
+             org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
++            // Janky Paper start - lightweight bots - bots never view tracked entities, on any path (also addEntity's updatePlayers)
++            if (player.jankyBot) {
++                this.removePlayer(player);
++                return;
++            }
++            // Janky Paper end - lightweight bots
+             if (player != this.entity) {
+                 // Paper start - remove allocation of Vec3D here
+                 // Vec3 deltaToPlayer = player.position().subtract(this.entity.position());

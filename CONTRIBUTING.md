@@ -57,19 +57,15 @@ Patch rules (the same as Paper's):
 
 ## Minecraft versions
 
-Each supported Minecraft version is its own branch (`main` is the newest, `ver/<version>` the older ones;
-`versions.txt` lists them). Open pull requests against **`main`**. Once merged, the change is cherry-picked onto
-each `ver/*` branch, newest to oldest. Say in your pull request if you already know a change can't work on an
-older version.
+Every supported Minecraft version lives on **`main`**: the newest is the repository root, the older ones are
+complete projects in `versions/<version>/` (`versions.txt` lists them). Open pull requests against `main`; CI
+builds the versions your pull request changes. The `ver/<version>` branches are mirrors the release workflow
+writes - never open pull requests against them. Say in your pull request if you already know a change can't
+work on an older version.
 
-If you want to port a change yourself:
-
-```bash
-./gradlew setupVersionWorktrees      # a worktree per ver/* branch (path: ./gradlew listVersions)
-```
-
-In the version's worktree, cherry-pick the change and run `./gradlew applyAllPatches`. Port the hunks that
-fail, then fixup, rebuild and commit. The README section
+If you want to port a change to an older version yourself, make the same change in its `versions/<version>/`
+folder (in the same pull request or a later one) and run `./gradlew applyAllPatches` inside that folder. Port
+the hunks that fail, then fixup and rebuild the patches. The README section
 [Keeping the versions in sync](README.md#keeping-the-versions-in-sync) lists the pitfalls.
 
 ## Testing

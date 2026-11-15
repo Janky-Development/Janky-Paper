@@ -1,0 +1,11 @@
+--- a/net/minecraft/server/ServerAdvancementManager.java
++++ b/net/minecraft/server/ServerAdvancementManager.java
+@@ -46,7 +_,7 @@
+         this.advancements = new java.util.HashMap<>(builder.buildOrThrow()); // CraftBukkit - SPIGOT-7734: mutable
+         AdvancementTree advancementTree = new AdvancementTree();
+         advancementTree.addAll(this.advancements.values());
+-        LOGGER.info("Loaded {} advancements", advancementTree.nodes().size()); // Paper - Improve logging and errors; moved from AdvancementTree#addAll
++        dev.jankypaper.server.log.JankyLog.kv("Advancements", advancementTree.nodes().size()); // Janky Paper - styled logs // Paper - Improve logging and errors; moved from AdvancementTree#addAll
+ 
+         for (AdvancementNode advancementNode : advancementTree.roots()) {
+             if (advancementNode.holder().value().display().isPresent()) {

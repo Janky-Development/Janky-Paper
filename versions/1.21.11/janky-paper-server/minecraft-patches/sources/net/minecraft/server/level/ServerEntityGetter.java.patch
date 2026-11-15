@@ -1,0 +1,15 @@
+--- a/net/minecraft/server/level/ServerEntityGetter.java
++++ b/net/minecraft/server/level/ServerEntityGetter.java
+@@ -54,6 +_,12 @@
+     default <T extends LivingEntity> @Nullable T getNearestEntity(
+         List<? extends T> entities, TargetingConditions targetingConditions, @Nullable LivingEntity source, double x, double y, double z
+     ) {
++        // Janky Paper start - lightweight bots - nearest player via the per-tick player grid
++        if (entities == this.getLevel().players() && dev.jankypaper.server.bot.PlayerGrid.useFor(this.getLevel())) {
++            final double maxRange = targetingConditions.jankyMaxRange(source, x, y, z, this.getLevel().jankyPlayerGrid.visibilityBoost());
++            return (T)this.getLevel().jankyPlayerGrid.nearest(x, y, z, maxRange, player -> targetingConditions.test(this.getLevel(), source, player));
++        }
++        // Janky Paper end - lightweight bots
+         double d = -1.0;
+         T livingEntity = null;
+ 

@@ -1,0 +1,36 @@
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -357,6 +_,16 @@
+     }
+ 
+     protected void updatePlayerPose() {
++        // Janky Paper start - one collision check in the common case: every pose but sleeping is a box containing the
++        // swimming box (same width, at least as tall, from the feet), so fitting the desired pose means fitting the
++        // swimming check below too - and vanilla would then pick the desired pose. Only when it does not fit run the rest.
++        final Pose jankyDesired = this.getDesiredPose();
++        if (jankyDesired != Pose.SLEEPING && !this.isSpectator() && !this.isPassenger()
++            && this.canPlayerFitWithinBlocksAndEntitiesWhen(jankyDesired)) {
++            this.setPose(jankyDesired);
++            return;
++        }
++        // Janky Paper end - one collision check in the common case
+         if (this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.SWIMMING)) {
+             Pose desiredPose = this.getDesiredPose();
+             Pose actualPose;
+@@ -497,7 +_,7 @@
+                 pickupArea = this.getBoundingBox().inflate(1.0, 0.5, 1.0);
+             }
+ 
+-            List<Entity> entities = this.level().getEntities(this, pickupArea);
++            List<Entity> entities = this instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot ? dev.jankypaper.server.bot.BotPlayers.touchableEntities(this, pickupArea) : this.level().getEntities(this, pickupArea); // Janky Paper - lightweight bots - only look up entities that react to a touch
+             List<Entity> orbs = Lists.newArrayList();
+ 
+             for (Entity entity : entities) {
+@@ -1487,6 +_,7 @@
+ 
+     @Override
+     public void travel(final Vec3 input) {
++        if (this instanceof net.minecraft.server.level.ServerPlayer jankyBot && jankyBot.jankyMoveState != 0 && dev.jankypaper.server.bot.BotMovement.capture(jankyBot, input)) return; // Janky Paper - parallel bot movement - recorded now, run on a worker thread after the plugin's tick loop
+         if (this.isPassenger()) {
+             super.travel(input);
+         } else {

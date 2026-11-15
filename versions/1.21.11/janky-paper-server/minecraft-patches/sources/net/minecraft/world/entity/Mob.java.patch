@@ -1,0 +1,24 @@
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -762,6 +_,12 @@
+         if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.shouldDespawnInPeaceful()) { // Paper - allow changing despawnInPeaceful
+             this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+         } else if (!this.isPersistenceRequired() && !this.requiresCustomPersistence()) {
++            // Janky Paper start - lightweight bots - with many players online, each mob checks every 4th tick (staggered)
++            final boolean jankyThrottled = this.level() instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel);
++            if (jankyThrottled && (this.tickCount + this.getId()) % 4 != 0) {
++                return;
++            }
++            // Janky Paper end - lightweight bots
+             Entity nearestPlayer = this.level().findNearbyPlayer(this, -1.0, EntitySelector.PLAYER_AFFECTS_SPAWNING); // Paper - Affects Spawning API
+             if (nearestPlayer != null) {
+                 // Paper start - Configurable despawn distances
+@@ -778,7 +_,7 @@
+                  }
+ 
+                 if (despawnRangePair.soft().shouldDespawn(shape, dxSqr, dySqr, dzSqr, dy)) {
+-                    if (this.noActionTime > 600 && this.random.nextInt(800) == 0 && this.removeWhenFarAway(distanceSquared)) {
++                    if (this.noActionTime > 600 && this.random.nextInt(jankyThrottled ? 200 : 800) == 0 && this.removeWhenFarAway(distanceSquared)) { // Janky Paper - lightweight bots - same despawn rate when checked every 4th tick
+                         this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+                     }
+                 } else {

@@ -1,23 +1,66 @@
 name: Patch and Build
 
+# Every Minecraft version is a project on main (versions.txt: the newest at the root, older ones in versions/<mc>/).
+# A push to main builds only the versions whose code is neither released nor already built (.github/scripts/
+# janky_lines.py plan) - in parallel, one job each - and uploads each jar to the "ci-builds" pre-release, labelled with
+# the fingerprint of the code it was built from. The Release workflow then publishes them and updates the ver/* mirror
+# branches. Pull requests build the versions they change.
 on:
   push:
-    branches: [ "**" ]
+    branches: [ main ]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      build_all:
+        description: "Build every Minecraft version, even ones whose jar is already built or released"
+        type: boolean
+        default: false
 
-# A new push to a branch cancels that branch's older run: saves Actions minutes, and the ci-builds jar of a version
-# is always from the branch's newest commit (the Release workflow relies on that).
+# A new push cancels the older run: the next plan rebuilds whatever that run did not finish.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  plan:
     # Only run on PRs if the source branch is on someone else's repo
     if: ${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      any: ${{ steps.plan.outputs.any }}
+    steps:
+      - name: Checkout Git Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # older release manifests point at commits of the former version branches
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BUILD_ALL: ${{ inputs.build_all }}
+        run: python .github/scripts/janky_lines.py plan
+
+  build:
+    needs: plan
+    if: ${{ needs.plan.outputs.any == 'true' }}
+    name: build (${{ matrix.mc }})
+    runs-on: ubuntu-latest
+    permissions:
       contents: write # upload the server jar to the ci-builds pre-release
+    strategy:
+      fail-fast: false # one broken version does not stop the others from being built and released
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.path }}
     env:
       # Janky Paper versions are "<mc>.build.<n>-<channel>" like Paper's; the run number is the build number
       BUILD_NUMBER: ${{ github.run_number }}
@@ -31,6 +74,8 @@ jobs:
           java-version: '25'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
       - name: Configure Git User Details
         run: git config --global user.email "actions@github.com" && git config --global user.name "GitHub Actions"
       # Commits made on Windows (core.filemode=false) keep losing gradlew's executable bit: don't depend on it
@@ -40,19 +85,16 @@ jobs:
         run: ./gradlew applyAllPatches --stacktrace
       - name: Build
         run: ./gradlew build --stacktrace
-      # The server jar of this branch's Minecraft version; the Release workflow (main) publishes it from here
       - name: Create Paperclip Jar
         run: ./gradlew createPaperclipJar --stacktrace
-      - name: Read Minecraft Version
-        id: minecraft
-        run: echo "version=$(sed -n 's/^mcVersion=//p' gradle.properties | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
       # Kept as an asset of the "ci-builds" pre-release, not as an Actions artifact: release assets don't count against
-      # the Actions storage quota (0.5 GB on the free plan, about 8 jars). Only for pushes to the version branches.
+      # the Actions storage quota (0.5 GB on the free plan, about 8 jars). Only for pushes to main.
       - name: Upload Paperclip Jar
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ver/')) }}
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          MINECRAFT: ${{ steps.minecraft.outputs.version }}
+          MINECRAFT: ${{ matrix.mc }}
+          CODE: ${{ matrix.code }}
         run: |
           set -euo pipefail
           jar=$(ls janky-paper-server/build/libs/jankypaper-paperclip-*.jar | grep -v -- '-reobf\.jar$' | head -n 1)
@@ -60,12 +102,7 @@ jobs:
           cp "$jar" "$RUNNER_TEMP/$name"
           gh release view ci-builds >/dev/null 2>&1 || gh release create ci-builds --prerelease --latest=false \
             --target "${{ github.event.repository.default_branch }}" --title "Development builds (CI)" \
-            --notes "The newest server jar CI built for each Minecraft version branch: untested in game and not a release. The real releases are the 'Janky Paper <number>' releases; the Release workflow publishes them from here." \
-            || gh release view ci-builds >/dev/null # another branch's CI created it at the same moment
-          # replaces this version's previous jar (same name)
-          gh release upload ci-builds "$RUNNER_TEMP/$name" --clobber
-          # remove jars named by the earlier janky-paper-<version>-<commit>.jar scheme
-          gh release view ci-builds --json assets -q '.assets[].name' > "$RUNNER_TEMP/assets.txt"
-          for old in $(grep -E "^janky-paper-${MINECRAFT//./\\.}-[0-9a-f]{40}\.jar$" "$RUNNER_TEMP/assets.txt" || true); do
-            gh release delete-asset ci-builds "$old" --yes
-          done
+            --notes "The newest server jar CI built for each Minecraft version: untested in game and not a release. The real releases are the 'Janky Paper <number>' releases; the Release workflow publishes them from here." \
+            || gh release view ci-builds >/dev/null # another job created it at the same moment
+          # replaces this version's previous jar (same name); the label records the code it was built from
+          gh release upload ci-builds "$RUNNER_TEMP/$name#$name · code $CODE" --clobber

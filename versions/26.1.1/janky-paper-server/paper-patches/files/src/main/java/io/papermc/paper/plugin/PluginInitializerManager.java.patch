@@ -1,0 +1,20 @@
+--- a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
++++ b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+@@ -96,7 +_,7 @@
+     }
+ 
+     public static void load(OptionSet optionSet) throws Exception {
+-        LOGGER.info("Initializing plugins...");
++        dev.jankypaper.server.log.JankyLog.info("Initializing plugins..."); // Janky Paper - styled logs
+         // We have to load the bukkit configuration inorder to get the update folder location.
+         io.papermc.paper.plugin.PluginInitializerManager pluginSystem = io.papermc.paper.plugin.PluginInitializerManager.init(optionSet);
+ 
+@@ -124,7 +_,7 @@
+             });
+         });
+         final int total = paperPluginNames.size() + legacyPluginNames.size();
+-        LOGGER.info("Initialized {} plugin{}", total, total == 1 ? "" : "s");
++        dev.jankypaper.server.log.JankyLog.success("Initialized " + total + " plugin" + (total == 1 ? "" : "s")); // Janky Paper - styled logs
+         if (!paperPluginNames.isEmpty()) {
+             if (LOGGER.isDebugEnabled()) {
+                 LOGGER.info("Paper plugins ({}):\n - {}", paperPluginNames.size(), String.join("\n - ", paperPluginNames));

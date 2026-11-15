@@ -1,0 +1,14 @@
+--- a/src/main/java/org/spigotmc/SpigotWorldConfig.java
++++ b/src/main/java/org/spigotmc/SpigotWorldConfig.java
+@@ -397,9 +_,9 @@
+     public int maxTntTicksPerTick;
+     private void maxTntPerTick() {
+         if (SpigotConfig.version < 7) {
+-            this.set("max-tnt-per-tick", 100);
++            this.set("max-tnt-per-tick", Integer.MAX_VALUE); // Janky Paper - no TNT cap by default
+         }
+-        this.maxTntTicksPerTick = this.getInt("max-tnt-per-tick", 100);
++        this.maxTntTicksPerTick = this.getInt("max-tnt-per-tick", Integer.MAX_VALUE); // Janky Paper - no TNT cap by default
+         this.log("Max TNT Explosions: " + this.maxTntTicksPerTick);
+     }
+ 

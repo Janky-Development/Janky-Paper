@@ -1,0 +1,48 @@
+--- a/net/minecraft/server/waypoints/ServerWaypointManager.java
++++ b/net/minecraft/server/waypoints/ServerWaypointManager.java
+@@ -20,6 +_,12 @@
+     private final Set<ServerPlayer> players = new HashSet<>();
+     private final Table<ServerPlayer, WaypointTransmitter, WaypointTransmitter.Connection> connections = HashBasedTable.create();
+ 
++    // Janky Paper start - whether any player in this world receives waypoints (real players; bots never do)
++    public boolean jankyHasReceivers() {
++        return !this.players.isEmpty();
++    }
++    // Janky Paper end
++
+     @Override
+     public void trackWaypoint(WaypointTransmitter waypoint) {
+         this.waypoints.add(waypoint);
+@@ -31,6 +_,7 @@
+ 
+     @Override
+     public void updateWaypoint(WaypointTransmitter waypoint) {
++        if (this.players.isEmpty()) return; // Janky Paper - no receivers means no connections either: nothing to update (the views and copies below cost every entity move)
+         if (this.waypoints.contains(waypoint)) {
+             Map<ServerPlayer, WaypointTransmitter.Connection> map = Tables.transpose(this.connections).row(waypoint);
+             SetView<ServerPlayer> set = Sets.difference(this.players, map.keySet());
+@@ -53,7 +_,7 @@
+     }
+ 
+     public void addPlayer(ServerPlayer player) {
+-        this.players.add(player);
++        if (!player.jankyBot) this.players.add(player); // Janky Paper - lightweight bots - bots have no locator bar; they are still tracked as waypoints
+ 
+         for (WaypointTransmitter waypointTransmitter : this.waypoints) {
+             this.createConnection(player, waypointTransmitter);
+@@ -65,6 +_,7 @@
+     }
+ 
+     public void updatePlayer(ServerPlayer player) {
++        if (player.jankyBot) return; // Janky Paper - lightweight bots
+         Map<WaypointTransmitter, WaypointTransmitter.Connection> map = this.connections.row(player);
+         SetView<WaypointTransmitter> set = Sets.difference(this.waypoints, map.keySet());
+ 
+@@ -102,6 +_,7 @@
+     }
+ 
+     private static boolean isLocatorBarEnabledFor(ServerPlayer player) {
++        if (player.jankyBot) return false; // Janky Paper - lightweight bots
+         return player.level().getGameRules().get(GameRules.LOCATOR_BAR);
+     }
+ 

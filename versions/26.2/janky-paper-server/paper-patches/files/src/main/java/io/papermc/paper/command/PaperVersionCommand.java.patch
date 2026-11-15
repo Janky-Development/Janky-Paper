@@ -1,0 +1,15 @@
+--- a/src/main/java/io/papermc/paper/command/PaperVersionCommand.java
++++ b/src/main/java/io/papermc/paper/command/PaperVersionCommand.java
+@@ -164,11 +_,7 @@
+ 
+     private CompletableFuture<ComputedVersion> fetchVersionMessage() {
+        return CompletableFuture.supplyAsync(() -> {
+-           final Component message = Component.textOfChildren(
+-               Component.text(Bukkit.getVersionMessage(), NamedTextColor.WHITE),
+-               Component.newline(),
+-               this.versionFetcher.getVersionMessage()
+-           );
++           final Component message = this.versionFetcher.getVersionMessage(); // Janky Paper - the branded card already names the server and its version
+ 
+            return new ComputedVersion(
+                message.hoverEvent(Component.translatable("chat.copy.click", NamedTextColor.WHITE))

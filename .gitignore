@@ -27,3 +27,6 @@ build
 
 # Jars collected by build-all-versions.sh
 /dist
+
+# Python bytecode (.github/scripts)
+__pycache__/

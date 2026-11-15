@@ -1,0 +1,10 @@
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -185,6 +_,7 @@
+                     final net.minecraft.server.level.ServerPlayer[] backingSet = inRange.getRawDataUnchecked();
+                     for (int k = 0, len = inRange.size(); k < len; k++) {
+                         minDiff = Math.min(limit - level.getChunkSource().chunkMap.getMobCountNear(backingSet[k], mobCategory), minDiff);
++                        if (minDiff <= 0) break; // Janky Paper - lightweight bots - one capped player already blocks the spawn; a crowd has hundreds to walk
+                     }
+                 }
+ 

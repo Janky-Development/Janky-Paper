@@ -1,0 +1,21 @@
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -2955,6 +_,10 @@
+     public void setSprinting(final boolean isSprinting) {
+         super.setSprinting(isSprinting);
+         AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
++        // Janky Paper start - already in the wanted state: skip the remove/re-add, which re-dirties the attribute and sends it to every tracking player (bots and AI set the same sprint state every tick)
++        net.minecraft.world.entity.ai.attributes.AttributeModifier current = speed.getModifier(SPEED_MODIFIER_SPRINTING.id());
++        if (isSprinting ? current == SPEED_MODIFIER_SPRINTING : current == null) return;
++        // Janky Paper end - already in the wanted state
+         speed.removeModifier(SPEED_MODIFIER_SPRINTING.id());
+         if (isSprinting) {
+             speed.addTransientModifier(SPEED_MODIFIER_SPRINTING);
+@@ -3774,6 +_,7 @@
+         }
+ 
+         if (!this.level().isClientSide() || this.isLocalInstanceAuthoritative()) {
++            if (!(this instanceof net.minecraft.server.level.ServerPlayer jankyBot && jankyBot.jankyMoveState == dev.jankypaper.server.bot.BotMovement.CAPTURED)) // Janky Paper - parallel bot movement - the bot has not moved yet; applied on the main thread after the move
+             this.applyEffectsFromBlocks();
+         }
+ 

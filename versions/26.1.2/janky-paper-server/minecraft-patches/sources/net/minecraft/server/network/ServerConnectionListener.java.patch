@@ -1,0 +1,21 @@
+--- a/net/minecraft/server/network/ServerConnectionListener.java
++++ b/net/minecraft/server/network/ServerConnectionListener.java
+@@ -77,8 +_,8 @@
+             }
+             // Paper end - Warn people with console access that HAProxy is in use.
+             // Paper start - Use Velocity cipher
+-            ServerConnectionListener.LOGGER.info("Paper: Using " + com.velocitypowered.natives.util.Natives.compress.getLoadedVariant() + " compression from Velocity.");
+-            ServerConnectionListener.LOGGER.info("Paper: Using " + com.velocitypowered.natives.util.Natives.cipher.getLoadedVariant() + " cipher from Velocity.");
++            dev.jankypaper.server.log.JankyLog.kv("Compression", com.velocitypowered.natives.util.Natives.compress.getLoadedVariant() + " (Velocity natives)"); // Janky Paper - styled logs
++            dev.jankypaper.server.log.JankyLog.kv("Cipher", com.velocitypowered.natives.util.Natives.cipher.getLoadedVariant() + " (Velocity natives)"); // Janky Paper - styled logs
+             // Paper end - Use Velocity cipher
+             this.channels
+                 .add(
+@@ -258,6 +_,7 @@
+     public void handleAllDisconnections() {
+         synchronized (this.connections) {
+             for (Connection connection : this.connections) {
++                if (connection.channel == null) continue; // Janky Paper - channel setup failed before it became active; nothing to close
+                 connection.channel.close().awaitUninterruptibly();
+                 connection.handleDisconnection();
+             }

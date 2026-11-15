@@ -1,0 +1,11 @@
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -609,7 +_,7 @@
+         if (this.address == null) {
+             return "local";
+         } else {
+-            return logIps ? this.address.toString() : "IP hidden";
++            return logIps ? dev.jankypaper.server.log.IpMask.address(this.address) : "IP hidden"; // Janky Paper - mask player IPs in logs (logging.mask-player-ips)
+         }
+     }
+ 

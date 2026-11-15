@@ -1,0 +1,20 @@
+--- a/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
++++ b/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
+@@ -56,6 +_,17 @@
+         return this;
+     }
+ 
++    // Janky Paper start - lightweight bots
++    /** Upper bound on how far from (x, y, z) a target passing {@link #test} can be, or -1 when unbounded. */
++    public double jankyMaxRange(final @Nullable LivingEntity targeter, final double x, final double y, final double z, final double visibilityBoost) {
++        if (targeter == null || this.range <= 0.0) {
++            return -1.0;
++        }
++        // test() allows exactly range * visibility; pad a little so the grid's strict < never rejects that edge
++        return Math.max(this.range * visibilityBoost, 2.0) + Math.sqrt(targeter.distanceToSqr(x, y, z)) + 1.0E-3;
++    }
++    // Janky Paper end - lightweight bots
++
+     public boolean test(final ServerLevel level, final @Nullable LivingEntity targeter, final LivingEntity target) {
+         if (targeter == target) {
+             return false;

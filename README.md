@@ -21,7 +21,7 @@ Paper's changes are patches on top of it.
 
 | | |
 |---|---|
-| Minecraft | **26.3** on `main` (`mcVersion` in `gradle.properties`) - also **26.2, 26.1.2, 26.1.1 and 1.21.11**, each on its own `ver/<version>` branch; 26.1 clients join the 26.1.x jars ([Minecraft versions](#minecraft-versions)) |
+| Minecraft | **26.3** (`mcVersion` in `gradle.properties`) - also **26.2, 26.1.2, 26.1.1 and 1.21.11**, each in `versions/<version>/` on `main`; 26.1 clients join the 26.1.x jars ([Minecraft versions](#minecraft-versions)) |
 | Based on Paper | commit `7e88a0da385c201f00011ce5eef1834d391e4023` (`paperRef`) |
 | Channel | ALPHA |
 | Java | 25 (Gradle auto-provisions a JetBrains JDK 25 for the dev server) |
@@ -126,16 +126,18 @@ nearby-player arrays) are removed for bots - see [Lightweight bots](#lightweight
 ## Minecraft versions
 
 Like Paper, each Janky Paper jar runs exactly one Minecraft version, so use the jar that matches the version
-your players are on. Every version has the same features, config file and commands. Each version lives on
-its own branch, the way Paper keeps its older versions on `ver/*` branches:
+your players are on. Every version has the same features, config file and commands. All of them live on
+`main`: the newest is the repository root, each older one is a complete project in `versions/<version>/`
+(listed in `versions.txt`). Each older version also has a `ver/<version>` branch, but that's a read-only
+mirror the release workflow writes (see [Releases](#releases)) - always change the code on `main`.
 
-| Minecraft | Branch | Based on Paper | Java |
-|---|---|---|---|
-| 26.3 | `main` | `7e88a0da` (26.3 build 237) | 25 |
-| 26.2 | `ver/26.2` | `e4d6dfd1` (26.2 build 135) | 25 |
-| 26.1.2 | `ver/26.1.2` | `e4e17fc9` (26.1.2 build 74) | 25 |
-| 26.1.1 | `ver/26.1.1` | `77c0866f` (26.1.1 build 29) | 25 |
-| 1.21.11 | `ver/1.21.11` | `c5eb0790` (1.21.11 build 132) | 21 |
+| Minecraft | Folder on `main` | Mirror branch | Based on Paper | Java |
+|---|---|---|---|---|
+| 26.3 | `.` (root) | - | `7e88a0da` (26.3 build 237) | 25 |
+| 26.2 | `versions/26.2` | `ver/26.2` | `e4d6dfd1` (26.2 build 135) | 25 |
+| 26.1.2 | `versions/26.1.2` | `ver/26.1.2` | `e4e17fc9` (26.1.2 build 74) | 25 |
+| 26.1.1 | `versions/26.1.1` | `ver/26.1.1` | `77c0866f` (26.1.1 build 29) | 25 |
+| 1.21.11 | `versions/1.21.11` | `ver/1.21.11` | `c5eb0790` (1.21.11 build 132) | 21 |
 
 **Minecraft 26.1** has no jar of its own. 26.1, 26.1.1 and 26.1.2 all use network protocol 775, so 26.1
 clients join the 26.1.2 (or 26.1.1) jar directly, which is also how Paper handled it. Paper never released a
@@ -145,37 +147,33 @@ world opened on 26.1.2 is upgraded and can't go back to a 26.1 server.
 
 ### Building every version
 
-From `main`, everything is in the **janky versions** task group. In IntelliJ that's the Gradle tool window
-under janky-paper → Tasks → janky versions; double-click a task to run it. From a terminal:
+Everything is in the **janky versions** task group of the root project. In IntelliJ that's the Gradle tool
+window under janky-paper → Tasks → janky versions; double-click a task to run it. From a terminal:
 
 ```bash
 ./gradlew buildJar-26.2        # one version's server jar -> dist/
 ./gradlew buildAllJars         # every version, one after another -> dist/
-./gradlew listVersions         # versions, branches and where each is checked out
+./gradlew listVersions         # versions and their folders
 ```
 
 | Task | What it does |
 |---|---|
 | `buildJar-<version>` | Builds that version's server jar and copies it into `dist/` (replacing older builds of the same version) |
 | `buildAllJars` | `buildJar-<version>` for every version, one at a time |
-| `applyPatches-<version>` | Only applies that version's patches, e.g. before opening its worktree in the IDE |
-| `setupVersionWorktrees` | Creates the worktree of every older version that doesn't have one yet |
-| `listVersions` | Prints each version, its branch and its checkout |
+| `applyPatches-<version>` | Only applies that version's patches, e.g. before opening its folder in the IDE |
+| `listVersions` | Prints each version and its folder |
 
-`buildJar-26.3` builds this checkout as it is (run `applyPatches-26.3`, i.e. `applyAllPatches`, after
-changing patches). Every older version builds in a git worktree of its `ver/*` branch using that branch's own
-Gradle wrapper (run on a JDK 21 toolchain, without a daemon). Those builds apply patches before building
-the jar. If that worktree's generated sources (`paper-server/`, `paper-api/`, the Minecraft sources) have
-uncommitted edits, the build stops instead of throwing them away.
+`buildJar-26.3` builds the root project as it is (run `applyPatches-26.3`, i.e. `applyAllPatches`, after
+changing patches). Every older version builds in its `versions/<version>/` folder with that folder's own
+Gradle wrapper (run on a JDK 21 toolchain, without a daemon), and applies its patches first. If that folder's
+generated sources (`paper-server/`, `paper-api/`, the Minecraft sources) have uncommitted edits, the build
+stops instead of throwing them away. Each version's generated sources take 2-3 GB once its patches are
+applied. `build-all-versions.sh` / `build-all-versions.bat` are shortcuts: no arguments runs `buildAllJars`,
+and versions as arguments run their `buildJar-<version>` tasks.
 
-A worktree that `git worktree list` already knows is reused. Missing ones are created under
-`-PjankyVersionsDir=...` (or `JANKY_VERSIONS_DIR`, default `Janky-Paper-versions/` next to this
-repository). Each takes 2-3 GB of decompiled Minecraft and Paper sources, so put them on a drive with room.
-`build-all-versions.sh` / `build-all-versions.bat` are shortcuts: no arguments runs `buildAllJars`, and
-versions as arguments run their `buildJar-<version>` tasks.
-
-To work on an older version itself (port a change, run its dev server), open its worktree folder as its own
-project in the IDE. It has the normal Janky Paper tasks for that version.
+To work on an older version itself (port a change, run its dev server), open its `versions/<version>/`
+folder as its own Gradle project in the IDE, or run `./gradlew <task>` inside it. It has the normal Janky
+Paper tasks for that version.
 
 ### What differs between versions
 
@@ -197,25 +195,30 @@ Only the internals that Minecraft or Paper changed between versions:
 
 ### Keeping the versions in sync
 
-A change lands on `main` first. Then cherry-pick it onto each `ver/*` branch, newest to oldest, and in each
-worktree run `./gradlew applyAllPatches`. If hunks fail, port them in the generated sources, run
+Make a change in the root project first. Then make the same change in each `versions/<version>/` folder,
+newest to oldest, in the same commit or later ones: a patch file can usually be copied over as it is, then
+run `./gradlew applyAllPatches` in that folder. If hunks fail, port them in the generated sources, run
 `fixupMinecraftSourcePatches` / `fixupPaperServerFilePatches` and then the matching `rebuild...` task
-(see [Making changes](#making-changes)), and commit. paperweight applies the `build.gradle.kts.patch` files
-strictly, so a hunk whose context lines differ fails even when its change still fits. Copy Paper's
-build script into place, apply the change by hand, and run `./gradlew rebuildPaperSingleFilePatches`.
+(see [Making changes](#making-changes)). paperweight applies the `build.gradle.kts.patch` files strictly, so a
+hunk whose context lines differ fails even when its change still fits. Copy Paper's build script into place,
+apply the change by hand, and run `./gradlew rebuildPaperSingleFilePatches`.
 
 ---
 
 ## Releases
 
-Releases are built and published by GitHub Actions; there's nothing to run by hand:
+Releases are built and published by GitHub Actions. Commit and push `main`; there's nothing else to run:
 
-1. Every push to `main` or a `ver/*` branch runs CI (**Patch and Build**, `.github/workflows/build.yml`). CI
-   applies the patches, builds, runs the tests, and uploads that branch's server jar to the **Development
-   builds (CI)** pre-release (tag `ci-builds`). That pre-release always holds the newest tested jar of each
-   version, for anyone who wants to try changes before a release.
-2. When CI passes, the **Release** workflow (`.github/workflows/release.yml`, logic in
-   `.github/scripts/release.py`) decides whether there's something new to publish, and publishes it.
+1. **Build** - every push to `main` runs CI (**Patch and Build**, `.github/workflows/build.yml`). It works out
+   which Minecraft versions' code changed (`.github/scripts/janky_lines.py plan`) and builds only those, in
+   parallel, one job each: apply patches, build, run the tests, create the jar. Each passing build uploads its
+   jar to the **Development builds (CI)** pre-release (tag `ci-builds`), labelled with the code it was built
+   from. That pre-release always holds the newest tested jar of each version, for anyone who wants to try
+   changes before a release.
+2. **Release** - when CI finishes, the **Release** workflow (`.github/workflows/release.yml`, logic in
+   `.github/scripts/release.py`) publishes the versions that changed.
+3. **Sync** - the same workflow then updates each `ver/<version>` mirror branch to the code of that version's
+   newest released jar, as a commit authored like the `main` commit it comes from.
 
 What goes into a release:
 
@@ -225,32 +228,30 @@ What goes into a release:
 | You raised `releaseVersion` on `main` (e.g. to `1.1` or `2.0`) | Exactly that number | Every Minecraft version |
 | Anything else | One patch up from the last release (`1.0` → `1.0.1` → `1.0.2`) | Only the Minecraft versions whose code changed since their last release |
 
-* **What counts as a change:** pushes that only touch docs or CI files (`*.md`, `LICENSE`, `.github/`,
-  `.editorconfig`, `versions.txt`, the build-all scripts) are ignored. Unchanged versions reuse their last jar in a full release, renamed to the
-  new number.
-* **CI gates every release:** a version is only released from a commit whose CI run succeeded. A full release
-  waits until every version is ready. A patch release ships the ready versions now, and the rest follow in the
-  next release once their CI passes.
+* **What counts as a change:** each version's code is fingerprinted (its folder's files, without docs and CI
+  files: `*.md`, `LICENSE`, `.github/`, `.editorconfig`, `.gitignore`, `versions.txt`, the build-all scripts;
+  the root version also ignores `versions/`). A version is built and released only when its fingerprint
+  differs from its last release, so a change to `versions/26.2/` never rebuilds 26.3 or 1.21.11. Unchanged
+  versions reuse their last jar in a full release, renamed to the new number.
+* **CI gates every release:** a version is only released from a jar CI built from exactly its current code,
+  and CI only uploads a jar when the build and tests pass. A full release waits until every version is
+  ready. A patch release ships the ready versions now; a version whose build failed is retried by the next
+  push and follows in a later release.
 * **Release notes:** every release lists all versions with a link to each one's current jar, so a patch
   release still points to the jars of the versions it didn't rebuild.
-* **`release-manifest.json`:** attached to each release, it records which commit and release every jar
-  came from. The next run compares against it.
-* **Manual runs:** run **Release** from the Actions tab. **full** ships every version without raising
-  `releaseVersion`; **dry run** only shows the plan.
-* **Version branches:** `release.yml` only needs to be on `main`, because GitHub runs it from the default
-  branch. Each `ver/*` branch needs the CI workflow that uploads its jar, and already has it.
+* **`release-manifest.json`:** attached to each release, it records the `main` commit, folder and code
+  fingerprint each jar came from, and the release it was published in. The next run compares against it.
+* **Mirror branches:** `ver/<version>` always holds exactly the code of that version's released jar, plus
+  `main`'s `LICENSE`, `NOTICE.md` and `CREDITS.md`, so it can still be cloned and built on its own. Never
+  commit to a mirror branch: the next sync builds on top of it from `main` and your change would not be in any
+  jar.
+* **Manual runs:** run **Patch and Build** from the Actions tab with **build all** to rebuild every version.
+  Run **Release** with **full** to ship every version without raising `releaseVersion`, or **dry run** to only
+  show what would be released and synced.
 * **Free-plan limits (private repository):** jars are kept as release files, not Actions artifacts, because
   artifacts count against the 0.5 GB Actions storage shared by the whole organization. CI minutes still count:
-  one CI run is about 15 minutes, so a push of all five branches uses about 75. In a public repository,
+  building one version is about 15 minutes, and only changed versions are built. In a public repository,
   Actions minutes and storage are free.
-
-To publish the first release (1.0), push `main` and every version branch:
-
-```bash
-git push origin main ver/26.2 ver/26.1.2 ver/26.1.1 ver/1.21.11
-```
-
-1.0 appears once CI has passed on all five.
 
 ---
 
@@ -875,11 +876,13 @@ moves. [CONTRIBUTING.md](CONTRIBUTING.md) has the full contributor guide.
 ### Updating upstream Paper
 
 Set `paperRef` in `gradle.properties` to the new Paper commit, run `./gradlew applyAllPatches`,
-fix any patch conflicts (see `*.rej` files), rebuild patches, commit. Each `ver/*` branch pins its own
-`paperRef`, so update an older version on its own branch
-([Minecraft versions](#minecraft-versions)). When a new Minecraft version comes out, branch the current
-`main` off as `ver/<old version>` before moving `main` to the new one. Then add the new branch to
-`versions.txt` and to the Minecraft version list in the issue forms (`.github/ISSUE_TEMPLATE/`).
+fix any patch conflicts (see `*.rej` files), rebuild patches, commit. Each `versions/<version>/` folder pins
+its own `paperRef`, so update an older version the same way inside its folder
+([Minecraft versions](#minecraft-versions)). When a new Minecraft version comes out, copy the root project
+(everything except `versions/`, the docs and `.github/`) into `versions/<old version>/` before moving the root
+to the new version. Then add the folder to `versions.txt` with a `ver/<old version>` mirror branch (the first
+release creates it) and add the new version to the Minecraft version list in the issue forms
+(`.github/ISSUE_TEMPLATE/`).
 
 Contributing guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md), and security reports go through
 [SECURITY.md](SECURITY.md).

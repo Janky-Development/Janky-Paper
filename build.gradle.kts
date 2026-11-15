@@ -113,18 +113,16 @@ tasks.register("printJankyPaperVersion") {
 
 // Janky Paper start - one jar per Minecraft version
 //
-// Every supported Minecraft version lives on its own branch (main = newest, ver/<mc> = older ones). The tasks
-// below (group "janky versions" in the IDE's Gradle tool window) build them from this checkout: each version
-// other than this checkout's own runs in a git worktree of its branch - an existing one if `git worktree list`
-// has it, otherwise one created under -PjankyVersionsDir / $JANKY_VERSIONS_DIR / ../Janky-Paper-versions - by
-// that branch's own Gradle wrapper, and the jar is copied into dist/.
-//
-// The versions and their branches are listed in versions.txt (also read by the release workflow).
+// Every supported Minecraft version is a complete project on main: the newest one is this root project, the older
+// ones live in versions/<minecraft version>/ (listed in versions.txt, which CI and the release workflow read too).
+// The tasks below (group "janky versions" in the IDE's Gradle tool window) build them from this checkout: the root
+// version with plain task dependencies, every other one by its own Gradle wrapper in its folder, and the jar is
+// copied into dist/. The ver/* branches are mirrors the release workflow writes - edit the code here on main.
 val jankyVersions: List<Pair<String, String>> = providers.fileContents(layout.projectDirectory.file("versions.txt")).asText.get()
     .lines()
     .map { it.substringBefore('#').trim() }
     .filter { it.isNotEmpty() }
-    .map { line -> line.split(Regex("\\s+")).let { it[0] to it[1] } } // <minecraft version> to <branch>, newest first
+    .map { line -> line.split(Regex("\\s+")).let { it[0] to it[1].trimEnd('/') } } // <minecraft version> to <folder>, newest first
 val jankyVersionsGroup = "janky versions"
 
 /** Copies the newest Paperclip jar of one version line into dist/, replacing older builds of that version. */
@@ -181,31 +179,7 @@ abstract class CheckGeneratedSourcesClean : DefaultTask() {
     }
 }
 
-val jankyGitWorktrees: Map<String, File> = providers.exec {
-    workingDir(rootDir)
-    commandLine("git", "worktree", "list", "--porcelain")
-    isIgnoreExitValue = true
-}.standardOutput.asText.get().let { text ->
-    val byBranch = mutableMapOf<String, File>()
-    var path: String? = null
-    for (line in text.lines()) {
-        if (line.startsWith("worktree ")) path = line.removePrefix("worktree ").trim()
-        if (line.startsWith("branch refs/heads/") && path != null) byBranch[line.removePrefix("branch refs/heads/").trim()] = File(path)
-    }
-    byBranch
-}
-val jankyCurrentBranch: String = providers.exec {
-    workingDir(rootDir)
-    commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
-    isIgnoreExitValue = true
-}.standardOutput.asText.get().trim()
-val jankyVersionsDir: File = File(
-    providers.gradleProperty("jankyVersionsDir")
-        .orElse(providers.environmentVariable("JANKY_VERSIONS_DIR"))
-        .orElse(rootDir.parentFile.resolve("Janky-Paper-versions").absolutePath)
-        .get()
-)
-// The worktrees build with their own Gradle wrappers (9.2 - 9.8); run those on JDK 21, which all of them support,
+// The older versions build with their own Gradle wrappers (9.2 - 9.8); run those on JDK 21, which all of them support,
 // whatever JVM the IDE runs this build on. Each builds with --no-daemon so no idle daemon per version stays behind.
 val jankyNestedJavaHome = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     .map { it.metadata.installationPath.asFile.absolutePath }
@@ -215,22 +189,30 @@ fun jankyGradlew(checkout: File, vararg args: String): List<String> =
     (if (jankyIsWindows) listOf("cmd", "/c", checkout.resolve("gradlew.bat").absolutePath) else listOf(checkout.resolve("gradlew").absolutePath)) +
         listOf("--no-daemon", "--console=plain") + args
 
+/** Runs one of the older versions' own Gradle builds in its folder. */
+fun Exec.jankyNestedGradle(checkout: File, vararg args: String) {
+    workingDir(checkout)
+    commandLine(jankyGradlew(checkout, *args))
+    val javaHome = jankyNestedJavaHome
+    doFirst { (this as Exec).environment("JAVA_HOME", javaHome.get()) }
+}
+
 val jankyBuildJarTasks = mutableListOf<String>()
 var jankyPreviousBuild: String? = null
-for ((mc, branch) in jankyVersions) {
+for ((mc, folder) in jankyVersions) {
     val applyName = "applyPatches-$mc"
     val buildName = "buildJar-$mc"
     val previous = jankyPreviousBuild
-    if (branch == jankyCurrentBranch) {
-        // this checkout: plain task dependencies, no nested build
+    if (folder == ".") {
+        // this project: plain task dependencies, no nested build
         tasks.register(applyName) {
             group = jankyVersionsGroup
-            description = "Applies the Minecraft $mc patches in this checkout (same as applyAllPatches)."
+            description = "Applies the Minecraft $mc patches of this project (same as applyAllPatches)."
             dependsOn("applyAllPatches")
         }
         tasks.register<CollectJankyJar>(buildName) {
             group = jankyVersionsGroup
-            description = "Builds the Minecraft $mc server jar from this checkout as its patches are applied now " +
+            description = "Builds the Minecraft $mc server jar from this project as its patches are applied now " +
                 "(run $applyName first after changing patches) and copies it into dist/."
             dependsOn(":janky-paper-server:createPaperclipJar")
             libsDir = layout.projectDirectory.dir("janky-paper-server/build/libs")
@@ -238,42 +220,28 @@ for ((mc, branch) in jankyVersions) {
             minecraftVersion = mc
         }
     } else {
-        val checkout = jankyGitWorktrees[branch] ?: jankyVersionsDir.resolve(mc)
-        val setup = tasks.register<Exec>("setupWorktree-$mc") {
-            description = "Checks out $branch into its git worktree ($checkout) if it is not there yet."
-            onlyIf("the worktree does not exist yet") { !checkout.resolve(".git").exists() }
-            workingDir(rootDir)
-            commandLine("git", "worktree", "add", checkout.absolutePath, branch)
-            if (previous != null) mustRunAfter(previous) // one version at a time
-        }
+        val checkout = rootDir.resolve(folder)
         val check = tasks.register<CheckGeneratedSourcesClean>("checkGeneratedSources-$mc") {
-            description = "Fails when the $mc worktree has uncommitted edits that applyAllPatches would discard."
-            dependsOn(setup)
-            checkoutDir = layout.dir(provider { checkout })
+            description = "Fails when $folder has uncommitted edits in its generated sources that applyAllPatches would discard."
+            checkoutDir = layout.projectDirectory.dir(folder)
+            if (previous != null) mustRunAfter(previous) // one version at a time
         }
         val apply = tasks.register<Exec>(applyName) {
             group = jankyVersionsGroup
-            description = "Applies the Minecraft $mc patches in its worktree ($checkout, branch $branch)."
+            description = "Applies the Minecraft $mc patches in $folder."
             dependsOn(check)
-            workingDir(checkout)
-            commandLine(jankyGradlew(checkout, "applyAllPatches"))
-            val javaHome = jankyNestedJavaHome
-            doFirst { (this as Exec).environment("JAVA_HOME", javaHome.get()) }
+            jankyNestedGradle(checkout, "applyAllPatches")
         }
         val paperclip = tasks.register<Exec>("createPaperclipJar-$mc") {
-            description = "Runs createPaperclipJar in the $mc worktree ($checkout)."
+            description = "Runs createPaperclipJar in $folder."
             dependsOn(apply)
-            workingDir(checkout)
-            commandLine(jankyGradlew(checkout, "createPaperclipJar"))
-            val javaHome = jankyNestedJavaHome
-            doFirst { (this as Exec).environment("JAVA_HOME", javaHome.get()) }
+            jankyNestedGradle(checkout, "createPaperclipJar")
         }
         tasks.register<CollectJankyJar>(buildName) {
             group = jankyVersionsGroup
-            description = "Builds the Minecraft $mc server jar in its worktree ($checkout, branch $branch) - " +
-                "patches are applied first - and copies it into dist/."
+            description = "Builds the Minecraft $mc server jar in $folder - patches are applied first - and copies it into dist/."
             dependsOn(paperclip)
-            libsDir = layout.dir(provider { checkout.resolve("janky-paper-server/build/libs") })
+            libsDir = layout.projectDirectory.dir("$folder/janky-paper-server/build/libs")
             distDir = layout.projectDirectory.dir("dist")
             minecraftVersion = mc
         }
@@ -288,19 +256,12 @@ tasks.register("buildAllJars") {
     dependsOn(jankyBuildJarTasks)
 }
 
-tasks.register("setupVersionWorktrees") {
-    group = jankyVersionsGroup
-    description = "Creates the git worktree of every older Minecraft version that does not have one yet, e.g. to open it in the IDE."
-    dependsOn(jankyVersions.filter { it.second != jankyCurrentBranch }.map { "setupWorktree-${it.first}" })
-}
-
 tasks.register("listVersions") {
     group = jankyVersionsGroup
-    description = "Lists the Minecraft versions, their branches and where each one is checked out."
-    val table = jankyVersions.joinToString("\n") { (mc, branch) ->
-        val where = if (branch == jankyCurrentBranch) "this checkout" else (jankyGitWorktrees[branch]?.path ?: "${jankyVersionsDir.resolve(mc)} (not created yet)")
-        "  %-8s %-12s %s".format(mc, branch, where)
+    description = "Lists the Minecraft versions and the folder each one lives in."
+    val table = jankyVersions.joinToString("\n") { (mc, folder) ->
+        "  %-8s %s".format(mc, if (folder == ".") ". (this project)" else folder)
     }
-    doLast { println("Minecraft  branch       checkout\n$table\n(26.1 clients join the 26.1.x jars)") }
+    doLast { println("Minecraft  folder\n$table\n(26.1 clients join the 26.1.x jars)") }
 }
 // Janky Paper end - one jar per Minecraft version

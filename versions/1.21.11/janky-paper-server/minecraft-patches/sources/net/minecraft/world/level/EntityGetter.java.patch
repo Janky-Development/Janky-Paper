@@ -1,0 +1,26 @@
+--- a/net/minecraft/world/level/EntityGetter.java
++++ b/net/minecraft/world/level/EntityGetter.java
+@@ -119,6 +_,7 @@
+     // Paper end - Affects Spawning API
+ 
+     default @Nullable Player getNearestPlayer(double x, double y, double z, double distance, @Nullable Predicate<Entity> predicate) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, distance, predicate == null ? player -> true : predicate); // Janky Paper - lightweight bots
+         double d = -1.0;
+         Player player = null;
+ 
+@@ -173,6 +_,7 @@
+     }
+ 
+     default boolean hasNearbyAlivePlayerThatAffectsSpawning(double x, double y, double z, double range) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, range, EntitySelector.PLAYER_AFFECTS_SPAWNING) != null; // Janky Paper - lightweight bots
+         for (Player player : this.players()) {
+             if (EntitySelector.PLAYER_AFFECTS_SPAWNING.test(player)) { // combines NO_SPECTATORS and LIVING_ENTITY_STILL_ALIVE with an "affects spawning" check
+                 double playerDist = player.distanceToSqr(x, y, z);
+@@ -186,6 +_,7 @@
+     // Paper end - Affects Spawning API
+ 
+     default boolean hasNearbyAlivePlayer(double x, double y, double z, double distance) {
++        if (this instanceof net.minecraft.server.level.ServerLevel serverLevel && dev.jankypaper.server.bot.PlayerGrid.useFor(serverLevel)) return serverLevel.jankyPlayerGrid.nearest(x, y, z, distance, player -> EntitySelector.NO_SPECTATORS.test(player) && EntitySelector.LIVING_ENTITY_STILL_ALIVE.test(player)) != null; // Janky Paper - lightweight bots
+         for (Player player : this.players()) {
+             if (EntitySelector.NO_SPECTATORS.test(player) && EntitySelector.LIVING_ENTITY_STILL_ALIVE.test(player)) {
+                 double d = player.distanceToSqr(x, y, z);

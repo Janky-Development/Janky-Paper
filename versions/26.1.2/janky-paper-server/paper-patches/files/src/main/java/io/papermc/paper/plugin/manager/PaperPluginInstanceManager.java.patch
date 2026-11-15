@@ -1,0 +1,14 @@
+--- a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
++++ b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
+@@ -250,6 +_,11 @@
+ 
+             ClassLoader classLoader = plugin.getClass().getClassLoader();
+             if (classLoader instanceof ConfiguredPluginClassLoader configuredPluginClassLoader) {
++                // Janky Paper start - a listener that outlives its closed jar would throw on every new connection
++                for (final net.kyori.adventure.key.Key key : io.papermc.paper.network.ChannelInitializeListenerHolder.removeListeners(classLoader)) {
++                    this.server.getLogger().warning("Removed channel initialization listener '" + key + "' left behind by " + pluginName);
++                }
++                // Janky Paper end
+                 try {
+                     configuredPluginClassLoader.close();
+                 } catch (IOException ex) {

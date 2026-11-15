@@ -1,0 +1,11 @@
+--- a/net/minecraft/server/Main.java
++++ b/net/minecraft/server/Main.java
+@@ -269,7 +_,7 @@
+                                         levelDataAndDimensions.worldData(), levelDataAndDimensions.dimensions().dimensionsRegistryAccess()
+                                     );
+                                 } else {
+-                                    LOGGER.info("No existing world data, creating new world");
++                                    dev.jankypaper.server.log.JankyLog.info("No existing world data - creating a new world"); // Janky Paper - styled logs
+                                     return createNewWorldData(
+                                         dedicatedServerSettings, context, registry, optionSet.has("demo"), optionSet.has("bonusChest") // CraftBukkit
+                                     );
