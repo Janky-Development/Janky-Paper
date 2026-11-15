@@ -148,7 +148,31 @@ public final class PlayerGrid {
     }
 
     public static boolean useFor(final ServerLevel level) {
-        return level.players().size() > MIN_PLAYERS;
+        if (level.players().size() > MIN_PLAYERS) {
+            return true;
+        }
+        level.jankyPlayerGrid.release();
+        return false;
+    }
+
+    /**
+     * Drops the snapshot once the world no longer uses the grid. It is only rebuilt while the world has more than
+     * {@link #MIN_PLAYERS} players, so without this the last snapshot kept every player in it reachable - after a mass
+     * bot despawn, hundreds of removed players stayed in memory until the world filled up again.
+     */
+    private void release() {
+        if (!this.overflow.isEmpty()) {
+            this.overflow.clear(); // trackers still pointing here add themselves once after a move
+        }
+        if (this.builtSize < 0) {
+            return;
+        }
+        java.util.Arrays.fill(this.players, null);
+        this.cells.clear();
+        this.cellOrdinals.clear();
+        this.overflow.clear();
+        this.builtSize = -1;
+        this.builtTick = Integer.MIN_VALUE;
     }
 
     private static long key(final int cx, final int cz) {

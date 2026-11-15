@@ -1,6 +1,6 @@
 --- a/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
 +++ b/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
-@@ -171,7 +_,20 @@
+@@ -169,7 +_,20 @@
      private boolean hasDimensionData(final LevelStem stem) {
          final ResourceKey<LevelStem> stemKey = this.server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getResourceKey(stem).orElseThrow();
          final ResourceKey<Level> dimensionKey = Registries.levelStemToLevel(stemKey);
