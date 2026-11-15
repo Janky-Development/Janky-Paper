@@ -9,7 +9,8 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-if (!file(".git").exists()) {
+// Janky Paper - the .git directory may be a parent folder's: older Minecraft versions live in versions/<mc>/ on main
+if (generateSequence(rootDir) { it.parentFile }.none { it.resolve(".git").exists() }) {
     error("Janky Paper must be cloned with git (paperweight needs the .git directory) - do not download a zip.")
 }
 
@@ -28,7 +29,7 @@ gradle.lifecycle.beforeProject {
     val versionChannel = providers.gradleProperty("channel").get().trim()
     // Janky Paper start
     val gitBuildNumber: Int? = try {
-        if (rootDir.resolve(".git").exists()) {
+        if (generateSequence(rootDir) { it.parentFile }.any { it.resolve(".git").exists() }) { // also in versions/<mc>/
             providers.exec {
                 workingDir(rootDir)
                 commandLine("git", "rev-list", "--count", "HEAD")

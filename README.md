@@ -21,7 +21,7 @@ Paper's changes are patches on top of it.
 
 | | |
 |---|---|
-| Minecraft | **26.2** (`mcVersion` in `gradle.properties`) - this is the `ver/26.2` branch; `main` has the newest Minecraft version and the list of every supported one |
+| Minecraft | **26.2** (`mcVersion` in `gradle.properties`) - its code lives in `versions/26.2/` on `main` (edit it there); the `ver/26.2` branch is a read-only copy of its newest released code |
 | Based on Paper | commit `e4d6dfd1597968e78a3d405dce73d1d1f14a4b81` (`paperRef`, Paper 26.2 build 135) |
 | Channel | ALPHA |
 | Java | 25 (Gradle auto-provisions a JDK 25 for the dev server) |

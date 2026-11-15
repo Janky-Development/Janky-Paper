@@ -76,6 +76,31 @@ section 7 of the license and stay in force for every copy and modified version.
    You may add your own names next to these credits. You may not remove, hide, shorten or reword them, or
    present anyone else as the creator or owner of Janky Paper.
 
+## Unofficial builds, forks and redistributions
+
+The only official Janky Paper builds are the jars published on the
+[Janky Paper GitHub releases](https://github.com/Janky-Development/Janky-Paper/releases) and the jars you build
+yourself from this repository's source.
+
+Pepe-tf, CamerG1011 and every other developer or contributor of Janky Paper are **not responsible** for any
+unofficial build, fork, modified version or redistributed copy of Janky Paper, or for anything that happens
+because you chose to download, install or run one. This includes, among other things:
+
+- jars or source shared on other websites, Discord servers, mirrors, mod or plugin sites, or by other people;
+- forks and modified versions of Janky Paper, and forks of those forks;
+- re-uploaded or re-hosted copies of an official jar, which may have been changed;
+- any malware, data loss, server damage, crashes, security issues, lost money or other harm they cause.
+
+Downloading or running an unofficial build or a redistributed version is your own choice and at your own risk.
+Whoever publishes a fork or redistributes a copy is alone responsible for it, its support, and what it does.
+The Janky Paper developers do not check, approve, support or endorse unofficial builds, and do not give support
+for them. If you are not sure a jar is official, do not run it: download it from the releases page above or
+build it from source.
+
+This section adds to, and does not replace, sections 15 ("Disclaimer of Warranty") and 16 ("Limitation of
+Liability") of the [LICENSE](LICENSE), which apply to every copy of Janky Paper, official or not. Those sections
+apply to the fullest extent the law where you live allows.
+
 ## Upstream projects
 
 | Project | License | Source |
