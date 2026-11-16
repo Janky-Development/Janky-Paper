@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Janky Paper - publishes the server jars as a GitHub release (run by .github/workflows/release.yml).
 
-Every Minecraft version in versions.txt is a project on main (the newest at the root, older ones in
-versions/<mc>/). CI ("Patch and Build", build.yml) builds each line whose code changed and uploads its server jar to
+Every Minecraft version in versions.txt is a project on main in versions/<mc>/. CI ("Patch and Build", build.yml) builds each line whose code changed and uploads its server jar to
 the "ci-builds" pre-release as janky-paper-<minecraft version>.jar, labelled with the fingerprint of the code it was
 built from (janky_lines.py; release assets, unlike Actions artifacts, don't count against the Actions storage
 quota). This script works out what the next release holds and publishes it:

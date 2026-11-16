@@ -1,6 +1,6 @@
 name: Patch and Build
 
-# Every Minecraft version is a project on main (versions.txt: the newest at the root, older ones in versions/<mc>/).
+# Every Minecraft version is a project on main in versions/<mc>/ (listed in versions.txt).
 # A push to main builds only the versions whose code is neither released nor already built (.github/scripts/
 # janky_lines.py plan) - in parallel, one job each - and uploads each jar to the "ci-builds" pre-release, labelled with
 # the fingerprint of the code it was built from. The Release workflow then publishes them and updates the ver/* mirror

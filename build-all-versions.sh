@@ -5,7 +5,7 @@
 #   ./build-all-versions.sh                 # ./gradlew buildAllJars
 #   ./build-all-versions.sh 26.2 1.21.11    # ./gradlew buildJar-26.2 buildJar-1.21.11
 #
-# ./gradlew listVersions shows every version and its folder (the root project or versions/<mc>/).
+# ./gradlew listVersions shows every version and its folder (versions/<mc>/).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 if [ $# -eq 0 ]; then

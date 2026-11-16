@@ -49,6 +49,10 @@ public final class FocusManager {
     private static final String HEADER = """
         Janky Paper settings.
 
+        config-version: which of Janky Paper's default changes this server's files already got. On start-up, values
+          in server.properties / spigot.yml / paper-global.yml still at an old default are moved to the new one
+          (logged), then this number goes up. Do not edit it.
+
         focus: pour resources into the players / areas being recorded.
           mode: auto   - focused players always get the 'focused' tier; everyone else gets the 'others'
                          tier only while average MSPT is above pressure.engage-mspt (until it falls
@@ -305,6 +309,7 @@ public final class FocusManager {
         }
         final YamlConfiguration yaml = new YamlConfiguration();
         yaml.options().setHeader(List.of(HEADER.split("\n")));
+        yaml.set(dev.jankypaper.server.migration.ConfigMigration.VERSION_KEY, dev.jankypaper.server.migration.ConfigMigration.CURRENT);
         settings.write(yaml);
         dev.jankypaper.server.bot.BotPlayers.write(section(yaml, "bots"));
         dev.jankypaper.server.log.IpMask.write(section(yaml, "logging"));

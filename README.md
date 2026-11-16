@@ -21,7 +21,7 @@ Paper's changes are patches on top of it.
 
 | | |
 |---|---|
-| Minecraft | **26.3** (`mcVersion` in `gradle.properties`) - also **26.2, 26.1.2, 26.1.1 and 1.21.11**, each in `versions/<version>/` on `main`; 26.1 clients join the 26.1.x jars ([Minecraft versions](#minecraft-versions)) |
+| Minecraft | **26.3**, **26.2, 26.1.2, 26.1.1 and 1.21.11** - each a project in `versions/<version>/` on `main` (`mcVersion` in its `gradle.properties`); 26.1 clients join the 26.1.x jars ([Minecraft versions](#minecraft-versions)) |
 | Based on Paper | commit `7e88a0da385c201f00011ce5eef1834d391e4023` (`paperRef`) |
 | Channel | ALPHA |
 | Java | 25 (Gradle auto-provisions a JetBrains JDK 25 for the dev server) |
@@ -78,14 +78,13 @@ Download it from the [GitHub releases](https://github.com/Janky-Development/Jank
 responsible for them (see [License](#license)). Or build it yourself (see [Developing Janky Paper](#developing-janky-paper)):
 
 ```bash
-./gradlew applyAllPatches
-./gradlew createPaperclipJar
+./gradlew buildJar-26.3        # from the repository root: applies 26.3's patches and builds its jar into dist/
 ```
 
-The server jar is `janky-paper-server/build/libs/jankypaper-paperclip-<version>.jar`. It is a Paperclip
-jar like Paper's: on first start it downloads the vanilla server, patches it and caches it under
-`cache/` and `libraries/`. That builds 26.3; for another Minecraft version, or all of them at once, see
-[Minecraft versions](#minecraft-versions).
+The server jar lands in `dist/jankypaper-paperclip-<version>.jar`. It is a Paperclip jar like Paper's: on
+first start it downloads the vanilla server, patches it and caches it under `cache/` and `libraries/`. Swap
+`26.3` for any other version, or run `./gradlew buildAllJars` for all of them (see
+[Minecraft versions](#minecraft-versions)).
 
 ### Starting it
 
@@ -99,6 +98,23 @@ Accept the EULA in `eula.txt` on first start. All of Paper's, Spigot's and Bukki
 (`config/paper-global.yml`, `config/paper-world-defaults.yml`, `spigot.yml`, `bukkit.yml`,
 `server.properties`) work unchanged. Janky Paper adds **one** file: `config/janky-paper.yml`,
 written with defaults on first start.
+
+### Switching an existing server to Janky Paper
+
+Just replace the server jar - keep every file and folder. Janky Paper ships a few different defaults from
+Paper (below), but a default only lands in a file when the file is first written, so an existing server would
+keep Paper's values. On the first start, before those files load, Janky Paper moves every value that still
+holds the **old default** to the Janky one and logs each change. Values you changed yourself are never touched.
+
+| File | Setting | Paper default | Janky default |
+|---|---|---|---|
+| `server.properties` | `max-players` | `20` | `2000000` |
+| `spigot.yml` | `world-settings.default.max-tnt-per-tick` | `100` | `2147483647` (no cap) |
+| `config/paper-global.yml` | `unsupported-settings.update-equipment-on-player-actions` | `true` | `false` |
+
+It runs once: `config-version` in `config/janky-paper.yml` records which changes this server already got (a
+server updated from an older Janky Paper build gets the ones it missed). Want a value back? Edit the file - it
+stays as you set it.
 
 ### What the startup log shows
 
@@ -127,13 +143,14 @@ nearby-player arrays) are removed for bots - see [Lightweight bots](#lightweight
 
 Like Paper, each Janky Paper jar runs exactly one Minecraft version, so use the jar that matches the version
 your players are on. Every version has the same features, config file and commands. All of them live on
-`main`: the newest is the repository root, each older one is a complete project in `versions/<version>/`
-(listed in `versions.txt`). Each older version also has a `ver/<version>` branch, but that's a read-only
-mirror the release workflow writes (see [Releases](#releases)) - always change the code on `main`.
+`main`, each as a complete project in `versions/<version>/` (listed in `versions.txt`); the repository root only
+holds the docs, CI and the build that drives those folders. Each version also has a `ver/<version>` branch, but
+that's a read-only mirror the release workflow writes (see [Releases](#releases)) - always change the code on
+`main`.
 
 | Minecraft | Folder on `main` | Mirror branch | Based on Paper | Java |
 |---|---|---|---|---|
-| 26.3 | `.` (root) | - | `7e88a0da` (26.3 build 237) | 25 |
+| 26.3 | `versions/26.3` | `ver/26.3` | `7e88a0da` (26.3 build 237) | 25 |
 | 26.2 | `versions/26.2` | `ver/26.2` | `e4d6dfd1` (26.2 build 135) | 25 |
 | 26.1.2 | `versions/26.1.2` | `ver/26.1.2` | `e4e17fc9` (26.1.2 build 74) | 25 |
 | 26.1.1 | `versions/26.1.1` | `ver/26.1.1` | `77c0866f` (26.1.1 build 29) | 25 |
@@ -148,7 +165,7 @@ world opened on 26.1.2 is upgraded and can't go back to a 26.1 server.
 ### Building every version
 
 Everything is in the **janky versions** task group of the root project. In IntelliJ that's the Gradle tool
-window under janky-paper → Tasks → janky versions; double-click a task to run it. From a terminal:
+window under janky-paper-versions → Tasks → janky versions; double-click a task to run it. From a terminal:
 
 ```bash
 ./gradlew buildJar-26.2        # one version's server jar -> dist/
@@ -163,17 +180,17 @@ window under janky-paper → Tasks → janky versions; double-click a task to ru
 | `applyPatches-<version>` | Only applies that version's patches, e.g. before opening its folder in the IDE |
 | `listVersions` | Prints each version and its folder |
 
-`buildJar-26.3` builds the root project as it is (run `applyPatches-26.3`, i.e. `applyAllPatches`, after
-changing patches). Every older version builds in its `versions/<version>/` folder with that folder's own
-Gradle wrapper (run on a JDK 21 toolchain, without a daemon), and applies its patches first. If that folder's
+Every version builds in its `versions/<version>/` folder with that folder's own Gradle wrapper (run on a
+JDK 21 toolchain, without a daemon), and applies its patches first. If that folder's
 generated sources (`paper-server/`, `paper-api/`, the Minecraft sources) have uncommitted edits, the build
 stops instead of throwing them away. Each version's generated sources take 2-3 GB once its patches are
 applied. `build-all-versions.sh` / `build-all-versions.bat` are shortcuts: no arguments runs `buildAllJars`,
 and versions as arguments run their `buildJar-<version>` tasks.
 
-To work on an older version itself (port a change, run its dev server), open its `versions/<version>/`
+To work on a version itself (write a change, port it, run its dev server), open its `versions/<version>/`
 folder as its own Gradle project in the IDE, or run `./gradlew <task>` inside it. It has the normal Janky
-Paper tasks for that version.
+Paper tasks for that version (everything under [Developing Janky Paper](#developing-janky-paper)). The root
+project only has the **janky versions** tasks.
 
 ### What differs between versions
 
@@ -195,8 +212,8 @@ Only the internals that Minecraft or Paper changed between versions:
 
 ### Keeping the versions in sync
 
-Make a change in the root project first. Then make the same change in each `versions/<version>/` folder,
-newest to oldest, in the same commit or later ones: a patch file can usually be copied over as it is, then
+Make a change in the newest version (`versions/26.3/`) first. Then make the same change in each older
+`versions/<version>/` folder, newest to oldest, in the same commit or later ones: a patch file can usually be copied over as it is, then
 run `./gradlew applyAllPatches` in that folder. If hunks fail, port them in the generated sources, run
 `fixupMinecraftSourcePatches` / `fixupPaperServerFilePatches` and then the matching `rebuild...` task
 (see [Making changes](#making-changes)). paperweight applies the `build.gradle.kts.patch` files strictly, so a
@@ -229,8 +246,8 @@ What goes into a release:
 | Anything else | One patch up from the last release (`1.0` → `1.0.1` → `1.0.2`) | Only the Minecraft versions whose code changed since their last release |
 
 * **What counts as a change:** each version's code is fingerprinted (its folder's files, without docs and CI
-  files: `*.md`, `LICENSE`, `.github/`, `.editorconfig`, `.gitignore`, `versions.txt`, the build-all scripts;
-  the root version also ignores `versions/`). A version is built and released only when its fingerprint
+  files: `*.md`, `LICENSE`, `.github/`, `.editorconfig`, `.gitignore`, `versions.txt`, the build-all scripts).
+  A version is built and released only when its fingerprint
   differs from its last release, so a change to `versions/26.2/` never rebuilds 26.3 or 1.21.11. Unchanged
   versions reuse their last jar in a full release, renamed to the new number.
 * **CI gates every release:** a version is only released from a jar CI built from exactly its current code,
@@ -783,6 +800,9 @@ Player IP addresses are masked (`85.226.***.**`) in every line Paper logs them i
 
 ### Building
 
+Everything below runs inside a version's folder - `cd versions/26.3` (or open that folder in the IDE) for the
+newest one. From the repository root, `./gradlew buildJar-<version>` does the whole build for you.
+
 ```bash
 ./gradlew applyAllPatches      # clone Paper, decompile Minecraft, apply all patches (slow the first time)
 ./gradlew build                # compile + run the tests (what CI runs after applyAllPatches)
@@ -810,6 +830,10 @@ can exceed the watchdog's limit).
 
 ### Project layout
 
+The repository root holds the docs, `.github/` (CI and releases), `versions.txt` and the small build with the
+**janky versions** tasks. Each Minecraft version is a folder in `versions/`, laid out like this
+(paths relative to `versions/<version>/`):
+
 | Directory | Tracked in git? | Purpose |
 |---|---|---|
 | `janky-paper-api/` | yes | Janky Paper API sources (`src/`), patches to Paper API (`paper-patches/`), patch for Paper's API build script |
@@ -826,6 +850,7 @@ Fork-only server code (no patches needed):
 | `dev.jankypaper.server.bot` | `BotPlayers` (detection, settings, lightweight-bot hooks), `PlayerGrid` (nearest-player index), `BotChunkTickets` (shared chunk tickets), `BotActivation` (entity activation around bots), `BotMovement` (parallel movement phases + plugin hooks), `BotWorkerThreads` (worker threads + loaded-only reads) |
 | `dev.jankypaper.server.focus` | `FocusManager` (state, tick, config file), `FocusSettings`, `FocusArea`, `FocusCommand` (`/focus`) |
 | `dev.jankypaper.server.log` | `JankyLog`, `ServerBanners` |
+| `dev.jankypaper.server.migration` | `ConfigMigration` (moves an existing server's files to Janky defaults, `config-version`) |
 | `src/log4jPlugins/java/dev/jankypaper/server/log` | `JankyPrefixConverter` (`%jankyPrefix`) |
 
 Where the patches hook in (each change is marked `// Janky Paper - <why>` in the patched file):
@@ -847,6 +872,7 @@ Where the patches hook in (each change is marked `// Janky Paper - <why>` in the
 | `Commands` | no command tree for bots |
 | `Level` | loaded-only reads on bot worker threads |
 | `MinecraftServer`, `DedicatedServer` | focus mode tick and start-up |
+| `PluginInitializerManager` (paper-server) | `ConfigMigration` runs first, before `server.properties`, `spigot.yml` and the Paper configs load |
 | `MoonriseCommon` (paper-server) | chunk worker / I/O thread defaults |
 | `PaperCommands` (paper-server) | `/focus` registration |
 
@@ -875,14 +901,12 @@ moves. [CONTRIBUTING.md](CONTRIBUTING.md) has the full contributor guide.
 
 ### Updating upstream Paper
 
-Set `paperRef` in `gradle.properties` to the new Paper commit, run `./gradlew applyAllPatches`,
-fix any patch conflicts (see `*.rej` files), rebuild patches, commit. Each `versions/<version>/` folder pins
-its own `paperRef`, so update an older version the same way inside its folder
-([Minecraft versions](#minecraft-versions)). When a new Minecraft version comes out, copy the root project
-(everything except `versions/`, the docs and `.github/`) into `versions/<old version>/` before moving the root
-to the new version. Then add the folder to `versions.txt` with a `ver/<old version>` mirror branch (the first
-release creates it) and add the new version to the Minecraft version list in the issue forms
-(`.github/ISSUE_TEMPLATE/`).
+Each `versions/<version>/` folder pins its own `paperRef` in its `gradle.properties`. Set it to the new Paper
+commit, run `./gradlew applyAllPatches` in that folder, fix any patch conflicts (see `*.rej` files), rebuild
+patches, commit ([Minecraft versions](#minecraft-versions)). When a new Minecraft version comes out, copy the
+newest folder to `versions/<new version>/` and move the copy to the new version. Then add it at the top of
+`versions.txt` with a `ver/<new version>` mirror branch (the first release creates it) and add the new version
+to the Minecraft version list in the issue forms (`.github/ISSUE_TEMPLATE/`).
 
 Contributing guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md), and security reports go through
 [SECURITY.md](SECURITY.md).

@@ -15,14 +15,15 @@ You need Git and a JDK (17+) to run Gradle. Gradle downloads the JDK it compiles
 
 ```bash
 git clone https://github.com/Janky-Development/Janky-Paper.git
-cd Janky-Paper
+cd Janky-Paper/versions/26.3   # every Minecraft version is its own project in versions/<version>/
 ./gradlew applyAllPatches      # checks out Paper, decompiles Minecraft, applies our patches
 ./gradlew build                # compiles and runs the tests, exactly what CI runs
 ./gradlew :janky-paper-server:runDevServer
 ```
 
 **Windows:** run `git config --global core.longpaths true` before the first `applyAllPatches`.
-Clone with Git; a downloaded zip does not build.
+Clone with Git; a downloaded zip does not build. In the IDE, open `versions/26.3` (or the version you work on)
+as the project. The repository root only builds the jars of every version (`./gradlew buildAllJars`).
 
 ## Where code goes
 
@@ -57,13 +58,13 @@ Patch rules (the same as Paper's):
 
 ## Minecraft versions
 
-Every supported Minecraft version lives on **`main`**: the newest is the repository root, the older ones are
-complete projects in `versions/<version>/` (`versions.txt` lists them). Open pull requests against `main`; CI
+Every supported Minecraft version lives on **`main`** as a complete project in `versions/<version>/`
+(`versions.txt` lists them; the newest is `versions/26.3`). Open pull requests against `main`; CI
 builds the versions your pull request changes. The `ver/<version>` branches are mirrors the release workflow
 writes - never open pull requests against them. Say in your pull request if you already know a change can't
 work on an older version.
 
-If you want to port a change to an older version yourself, make the same change in its `versions/<version>/`
+Make your change in the newest version first. If you want to port it to an older version yourself, make the same change in its `versions/<version>/`
 folder (in the same pull request or a later one) and run `./gradlew applyAllPatches` inside that folder. Port
 the hunks that fail, then fixup and rebuild the patches. The README section
 [Keeping the versions in sync](README.md#keeping-the-versions-in-sync) lists the pitfalls.

@@ -2,15 +2,16 @@
 # Read by the "janky versions" Gradle tasks (build.gradle.kts), CI (.github/workflows/build.yml) and the release
 # workflow (.github/workflows/release.yml, .github/scripts/release.py and janky_lines.py).
 #
-# The newest version is the repository root ("."); older ones are complete projects in versions/<minecraft version>/.
-# A mirror branch is written only by the release workflow: after each release it holds exactly the code of that
-# version's released jar. Edit the code on main, never on a mirror branch (the next sync would overwrite it).
+# Every version, the newest included, is a complete project in versions/<minecraft version>/; the repository root
+# only has the docs, CI and the build that drives these folders. A mirror branch is written only by the release
+# workflow: after each release it holds exactly the code of that version's released jar. Edit the code on main,
+# never on a mirror branch (the next sync would overwrite it).
 #
 # Minecraft 26.1 has no line of its own: 26.1, 26.1.1 and 26.1.2 share protocol 775, so 26.1 clients join
 # the 26.1.x jars.
 #
 # <minecraft version>  <folder on main>  <mirror branch>
-26.3     .                 main
+26.3     versions/26.3     ver/26.3
 26.2     versions/26.2     ver/26.2
 26.1.2   versions/26.1.2   ver/26.1.2
 26.1.1   versions/26.1.1   ver/26.1.1

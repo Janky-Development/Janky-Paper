@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Janky Paper - the Minecraft version lines on main, shared by the CI, release and sync steps.
 
-Every supported Minecraft version is a complete paperweight project on main: the newest one is the repository
-root, the older ones live in versions/<minecraft version>/ (versions.txt lists them). Each one also has a mirror
+Every supported Minecraft version is a complete paperweight project on main in versions/<minecraft version>/
+(versions.txt lists them). Until 2026-11-16 the newest one lived at the repository root (folder '' below), and
+release manifests from then still point there, so the root case stays supported. Each one also has a mirror
 branch (ver/<minecraft version>) that only CI writes to: after a release it holds exactly the code of that
 version's newest released jar, so the branch can still be cloned and built on its own.
 
@@ -75,7 +76,7 @@ def commit_of(rev):
 
 
 def read_versions(commit=None):
-    """[(minecraft version, folder on main, mirror branch)], newest first. Folder '' is the repository root."""
+    """[(minecraft version, folder on main, mirror branch)], newest first. Folder '' is the repository root (old layout)."""
     text = (run("git", "show", f"{commit}:versions.txt").stdout if commit
             else (ROOT / "versions.txt").read_text(encoding="utf-8"))
     lines = []
