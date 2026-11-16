@@ -85,7 +85,15 @@ public final class FocusManager {
         logging:
           mask-player-ips: true logs 85.226.123.45 as 85.226.***.** wherever Paper prints a player's address
           (join line, login failures and disconnects, packet errors), in the console and in logs/latest.log.
-          Paper's own logging.log-player-ip-addresses: false (paper-global.yml) still hides addresses completely.""";
+          Paper's own logging.log-player-ip-addresses: false (paper-global.yml) still hides addresses completely.
+
+        updates: checks the Janky Paper releases on GitHub once the server is up, then every check-interval-hours
+          (0 = only at start-up), and logs whether a newer release changed this Minecraft version's code.
+          check: false turns the checks off (so does paper-global.yml update-checker.enabled: false).
+          auto-update: true downloads the newest jar for this same Minecraft version, verifies it against the release
+          (size + SHA-256), keeps the old jar in cache/janky-update/previous/ and puts the new one in place of the jar
+          the server was started with - it runs after the next restart (nothing restarts by itself). On Windows the
+          swap happens right after the server stops. Needs the server started as 'java -jar <Janky Paper jar>'.""";
 
     private static FocusSettings settings = FocusSettings.DEFAULTS;
     private static Path file;
@@ -278,6 +286,7 @@ public final class FocusManager {
         settings = FocusSettings.read(yaml);
         dev.jankypaper.server.bot.BotPlayers.read(section(yaml, "bots"));
         dev.jankypaper.server.log.IpMask.read(section(yaml, "logging"));
+        dev.jankypaper.server.version.JankyUpdater.read(section(yaml, "updates"));
         focusedPlayers.clear();
         for (final String raw : yaml.getStringList("focus.targets.players")) {
             try {
@@ -313,6 +322,7 @@ public final class FocusManager {
         settings.write(yaml);
         dev.jankypaper.server.bot.BotPlayers.write(section(yaml, "bots"));
         dev.jankypaper.server.log.IpMask.write(section(yaml, "logging"));
+        dev.jankypaper.server.version.JankyUpdater.write(section(yaml, "updates"));
         yaml.set("focus.targets.players", focusedPlayers.stream().map(UUID::toString).toList());
         yaml.set("focus.targets.areas", areas.stream().map(FocusArea::serialize).toList());
         try {
