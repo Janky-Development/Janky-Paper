@@ -116,6 +116,42 @@ It runs once: `config-version` in `config/janky-paper.yml` records which changes
 server updated from an older Janky Paper build gets the ones it missed). Want a value back? Edit the file - it
 stays as you set it.
 
+### Updates
+
+Once the server is up, and then every 6 hours, Janky Paper checks the
+[GitHub releases](https://github.com/Janky-Development/Janky-Paper/releases) and logs where this jar stands:
+
+```
+[ᴊᴀɴᴋʏ] You are running the latest Janky Paper release for Minecraft 26.3 (1.0.8)
+[ᴊᴀɴᴋʏ] Janky Paper 1.0.9 is out for Minecraft 26.3 (this server runs 26.3-16-909c7a0)
+```
+
+It compares **code and builds**, not version numbers: a release only counts as an update when it changed this
+Minecraft version's code (a release that only touched 1.21.11 doesn't nag a 26.3 server), even if it reuses a release
+number you already run - a beta 1.2 is still flagged when 1.2 ships with more changes. The periodic checks only log
+when something changed. `/version` shows the same status.
+
+**Build ids.** Every build gets a random id (`Janky-Build-Id` in the jar's manifest, shown by `/version` as
+`id 3fa9c1d20b7e` and in the update log lines). CI writes it into the release manifest, so a server running exactly
+the released jar knows it without asking GitHub anything else, and "already installed" is tracked per build, never
+per release number. Jars you build yourself get a `local-...` id and are never replaced automatically.
+
+**Automatic updates** (on by default): when a newer release is out, Janky Paper downloads the jar for **the same
+Minecraft version** (it never switches you to another one), checks its size and SHA-256 against the release, keeps
+your current jar in `cache/janky-update/previous/` and puts the new jar in place of the one the server was started
+with. It never restarts the server - the new version runs after your next restart, and the
+[config migration](#switching-an-existing-server-to-janky-paper) runs then if it brings new defaults.
+
+* **Linux / macOS (and most hosting panels):** the jar is replaced right away; the running server keeps using the
+  old file until it stops.
+* **Windows:** a running jar is locked, so a small script (`cache/janky-update/apply-update.cmd`) swaps it the moment
+  the server process exits. If a restart script grabs the jar first, the next start puts the update in place again
+  (without downloading it twice).
+* It only works when the server is started as `java -jar <the Janky Paper jar>` - not from an IDE or Gradle.
+* Turn it off with `updates.auto-update: false` (you still get the log line with the download link), or turn the
+  checks off entirely with `updates.check: false` or Paper's `update-checker.enabled: false` in `paper-global.yml`.
+* Development builds (CI jars of newer code, local builds, forks) are never replaced.
+
 ### What the startup log shows
 
 During start-up Janky Paper prints a few extra rows you can use to confirm the features are active:
@@ -251,13 +287,15 @@ What goes into a release:
   differs from its last release, so a change to `versions/26.2/` never rebuilds 26.3 or 1.21.11. Unchanged
   versions reuse their last jar in a full release, renamed to the new number.
 * **CI gates every release:** a version is only released from a jar CI built from exactly its current code,
-  and CI only uploads a jar when the build and tests pass. A full release waits until every version is
+  and CI only uploads a jar when the build and tests pass and the jar boots: `.github/scripts/smoke_test.sh` starts
+  it once with Paper's old defaults (so the config migration runs), stops it from the console and checks its build
+  id. That matters because servers install releases by themselves ([Updates](#updates)). A full release waits until every version is
   ready. A patch release ships the ready versions now; a version whose build failed is retried by the next
   push and follows in a later release.
 * **Release notes:** every release lists all versions with a link to each one's current jar, so a patch
   release still points to the jars of the versions it didn't rebuild.
-* **`release-manifest.json`:** attached to each release, it records the `main` commit, folder and code
-  fingerprint each jar came from, and the release it was published in. The next run compares against it.
+* **`release-manifest.json`:** attached to each release, it records the `main` commit, folder, code
+  fingerprint and build id each jar came from, and the release it was published in. The next run compares against it.
 * **Mirror branches:** `ver/<version>` always holds exactly the code of that version's released jar, plus
   `main`'s `LICENSE`, `NOTICE.md` and `CREDITS.md`, so it can still be cloned and built on its own. Never
   commit to a mirror branch: the next sync builds on top of it from `main` and your change would not be in any
@@ -310,6 +348,11 @@ bots:
   distant-update-range: 64.0 # blocks - a viewer further than this counts as far
 logging:
   mask-player-ips: true      # 85.226.123.45 is logged as 85.226.***.** (join line, login/kick messages, packet errors)
+updates:
+  check: true                # check GitHub releases at start-up and every check-interval-hours, and log the result
+  check-interval-hours: 6    # 0 = only at start-up
+  auto-update: true          # download the newer jar for this Minecraft version; it runs after the next restart
+config-version: 1            # written by Janky Paper - which default changes this server's files already got
 ```
 
 ### `focus` keys
@@ -345,6 +388,14 @@ logging:
 | Key | Default | Meaning |
 |---|---|---|
 | `mask-player-ips` | `true` | Masks player IP addresses everywhere Paper logs them - the join line (`Name[/85.226.***.**:54321] logged in ...`), login failures and disconnects, packet-handling errors - in the console and in `logs/latest.log`. The last two IPv4 octets (everything after the first two IPv6 groups) become one `*` per digit, so you can still tell players and networks apart in a support thread without publishing anyone's address. `false` logs full addresses like Paper does. Paper's own `logging.log-player-ip-addresses: false` (`paper-global.yml`) still hides them completely. Plugins that print addresses themselves are not affected. |
+
+### `updates` keys
+
+| Key | Default | Meaning |
+|---|---|---|
+| `check` | `true` | Check the Janky Paper releases once the server is up and every `check-interval-hours`, and log whether a newer release changed this Minecraft version's code ([Updates](#updates)). `false` (or Paper's `update-checker.enabled: false`) turns the checks, and with them automatic updates, off. |
+| `check-interval-hours` | `6` | Hours between checks while the server runs (`0` = only at start-up, up to 168). Each check is two GitHub API requests; GitHub allows 60 an hour per IP address. |
+| `auto-update` | `true` | Download the newer jar for this same Minecraft version, verify it (size + SHA-256), keep the old jar in `cache/janky-update/previous/` and put the new one in place of the jar the server was started with. It runs after the next restart; nothing restarts by itself. On Windows the swap happens right after the server stops. Needs the server started as `java -jar <Janky Paper jar>`. |
 
 ---
 
@@ -851,6 +902,7 @@ Fork-only server code (no patches needed):
 | `dev.jankypaper.server.focus` | `FocusManager` (state, tick, config file), `FocusSettings`, `FocusArea`, `FocusCommand` (`/focus`) |
 | `dev.jankypaper.server.log` | `JankyLog`, `ServerBanners` |
 | `dev.jankypaper.server.migration` | `ConfigMigration` (moves an existing server's files to Janky defaults, `config-version`) |
+| `dev.jankypaper.server.version` | `JankyVersion` (`/version` card, update check against the release manifest), `JankyUpdater` (periodic checks in the log, automatic updates) |
 | `src/log4jPlugins/java/dev/jankypaper/server/log` | `JankyPrefixConverter` (`%jankyPrefix`) |
 
 Where the patches hook in (each change is marked `// Janky Paper - <why>` in the patched file):
