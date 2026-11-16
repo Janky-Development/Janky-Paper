@@ -1,0 +1,52 @@
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+@@ -195,11 +_,11 @@
+     public void close(final boolean save, final boolean halt) {
+         TickThread.ensureTickThread("Closing world off-main");
+         if (halt) {
+-            LOGGER.info("Waiting 60s for chunk system to halt for world '" + WorldUtil.getWorldName(this.world) + "'");
++            dev.jankypaper.server.log.JankyLog.info("Halting chunk system for world '" + WorldUtil.getWorldName(this.world) + "'..."); // Janky Paper - styled logs
+             if (!this.taskScheduler.halt(true, TimeUnit.SECONDS.toNanos(60L))) {
+                 LOGGER.warn("Failed to halt generation/loading tasks for world '" + WorldUtil.getWorldName(this.world) + "'");
+             } else {
+-                LOGGER.info("Halted chunk system for world '" + WorldUtil.getWorldName(this.world) + "'");
++                LOGGER.debug("Halted chunk system for world '" + WorldUtil.getWorldName(this.world) + "'"); // Janky Paper - console noise
+             }
+         }
+ 
+@@ -210,11 +_,11 @@
+         MoonriseRegionFileIO.flush(this.world);
+ 
+         if (halt) {
+-            LOGGER.info("Waiting 60s for chunk I/O to halt for world '" + WorldUtil.getWorldName(this.world) + "'");
++            dev.jankypaper.server.log.JankyLog.info("Halting chunk I/O for world '" + WorldUtil.getWorldName(this.world) + "'..."); // Janky Paper - styled logs
+             if (!this.taskScheduler.haltIO(true, TimeUnit.SECONDS.toNanos(60L))) {
+                 LOGGER.warn("Failed to halt I/O tasks for world '" + WorldUtil.getWorldName(this.world) + "'");
+             } else {
+-                LOGGER.info("Halted I/O scheduler for world '" + WorldUtil.getWorldName(this.world) + "'");
++                LOGGER.debug("Halted I/O scheduler for world '" + WorldUtil.getWorldName(this.world) + "'"); // Janky Paper - console noise
+             }
+         }
+ 
+@@ -276,7 +_,7 @@
+             if (emergency) {
+                 LOGGER.info("Emergency saving all chunkholders for world '" + WorldUtil.getWorldName(this.world) + "'");
+             } else {
+-                LOGGER.info("Saving all chunkholders for world '" + WorldUtil.getWorldName(this.world) + "'");
++                dev.jankypaper.server.log.JankyLog.info("Saving chunks for world '" + WorldUtil.getWorldName(this.world) + "'..."); // Janky Paper - styled logs
+             }
+         }
+ 
+@@ -349,9 +_,9 @@
+             }
+         }
+         if (logProgress) {
+-            LOGGER.info(
+-                    "Saved " + savedChunk + " block chunks, " + savedEntity + " entity chunks, " + savedPoi
+-                            + " poi chunks in world '" + WorldUtil.getWorldName(this.world) + "' in "
++            dev.jankypaper.server.log.JankyLog.success( // Janky Paper - styled logs
++                    "Saved " + savedChunk + " chunks, " + savedEntity + " entity chunks and " + savedPoi
++                            + " POI chunks for world '" + WorldUtil.getWorldName(this.world) + "' in "
+                             + format.format(1.0E-9 * (System.nanoTime() - start)) + "s"
+             );
+         }

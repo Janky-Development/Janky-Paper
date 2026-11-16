@@ -1,0 +1,11 @@
+--- a/src/main/java/io/papermc/paper/PaperBootstrap.java
++++ b/src/main/java/io/papermc/paper/PaperBootstrap.java
+@@ -20,7 +_,7 @@
+         SharedConstants.CHECK_DATA_FIXER_SCHEMA = Boolean.getBoolean("paper.updatingMinecraft");
+         // Paper end - Perf: Skip data fixer schema sanity check
+ 
+-        getStartupVersionMessages().forEach(LOGGER::info);
++        dev.jankypaper.server.log.ServerBanners.printBootHeader(); // Janky Paper - styled boot header
+ 
+         Main.main(options);
+     }

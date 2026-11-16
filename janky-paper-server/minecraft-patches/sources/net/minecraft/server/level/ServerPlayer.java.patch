@@ -1,0 +1,74 @@
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -444,6 +_,19 @@
+     public boolean suppressTrackerForLogin = false; // Paper - Fire PlayerJoinEvent when Player is actually ready
+     // CraftBukkit end
+     public boolean isRealPlayer; // Paper
++    public boolean jankyBot; // Janky Paper - lightweight bots
++    public final dev.jankypaper.server.bot.PlayerGrid.Tracker jankyGridTracker = new dev.jankypaper.server.bot.PlayerGrid.Tracker(this); // Janky Paper - player grid snapshot bookkeeping
++    public boolean jankyMobCapTracked = true; // Janky Paper - lightweight bots - in the per-player mob cap map (only then are mobCounts read)
++    // Janky Paper start - parallel bot movement (see dev.jankypaper.server.bot.BotMovement)
++    public volatile byte jankyMoveState;
++    public net.minecraft.world.phys.Vec3 jankyTravelInput;
++    public boolean jankyMovedOffThread;
++
++    /** The inside-block / step-on effects of this tick's movement, run on the main thread after an off-thread move. */
++    public void jankyApplyDeferredBlockEffects() {
++        this.applyEffectsFromBlocks();
++    }
++    // Janky Paper end - parallel bot movement
+     public com.destroystokyo.paper.event.entity.@Nullable PlayerNaturallySpawnCreaturesEvent playerNaturallySpawnedEvent; // Paper - PlayerNaturallySpawnCreaturesEvent
+     public org.bukkit.event.player.PlayerQuitEvent.@Nullable QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
+ 
+@@ -737,7 +_,7 @@
+         }
+ 
+         // Paper start - Configurable container update tick rate
+-        if (--this.containerUpdateDelay <= 0) {
++        if (!this.jankyBot && --this.containerUpdateDelay <= 0) { // Janky Paper - lightweight bots - no client to sync slots to
+             this.containerMenu.broadcastChanges();
+             // Broadcast equipment and crafting slots when the player is in a container, fixes MC-297508
+             if (this.containerMenu != this.inventoryMenu) {
+@@ -771,7 +_,7 @@
+ 
+         this.trackStartFallingPosition();
+         this.trackEnteredOrExitedLavaOnVehicle();
+-        this.updatePlayerAttributes();
++        if (!this.jankyBot || (this.tickCount + this.getId()) % 20 == 0) this.updatePlayerAttributes(); // Janky Paper - lightweight bots - game mode / crouch modifiers, once a second is plenty
+         this.advancements.flushDirty(this, true);
+         if (this.postEffectsDirty) {
+             this.sendPostEffects();
+@@ -832,7 +_,7 @@
+                 }
+             }
+ 
+-            for (int i = 0; i < this.getInventory().getContainerSize(); i++) {
++            for (int i = 0; !this.jankyBot && i < this.getInventory().getContainerSize(); i++) { // Janky Paper - lightweight bots - map item updates only feed a client
+                 ItemStack itemStack = this.getInventory().getItem(i);
+                 if (!itemStack.isEmpty()) {
+                     this.synchronizeSpecialItemUpdates(itemStack);
+@@ -1844,6 +_,7 @@
+ 
+     @Override
+     protected void pushEntities() {
++        if (this.jankyBot && !dev.jankypaper.server.bot.BotPlayers.vanillaPush()) return; // Janky Paper - lightweight bots - bot-on-bot pushing is O(bots^2); bots are still pushed by mobs
+         if (this.level().tickRateManager().runsNormally()) {
+             super.pushEntities();
+         }
+@@ -2119,7 +_,7 @@
+ 
+     @Override
+     public void awardStat(final Stat<?> stat, final int count) {
+-        this.stats.increment(this, stat, count);
++        if (!this.jankyBot) this.stats.increment(this, stat, count); // Janky Paper - lightweight bots - skips the per-increment stat event; scoreboards below still count
+         this.level().getCraftServer().getScoreboardManager().forAllObjectives(stat, this, score -> score.add(count)); // CraftBukkit - Get our scores instead
+     }
+ 
+@@ -3016,6 +_,7 @@
+     }
+ 
+     public Set<DebugSubscription<?>> debugSubscriptions() {
++        if (this.jankyBot) return Set.of(); // Janky Paper - lightweight bots - skips a permission check per bot per tick
+         return !this.server.debugSubscribers().hasRequiredPermissions(this) ? Set.of() : this.requestedDebugSubscriptions;
+     }
+ 

@@ -1,0 +1,24 @@
+--- a/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
++++ b/src/main/java/io/papermc/paper/world/PaperWorldLoader.java
+@@ -171,7 +_,20 @@
+     private boolean hasDimensionData(final LevelStem stem) {
+         final ResourceKey<LevelStem> stemKey = this.server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getResourceKey(stem).orElseThrow();
+         final ResourceKey<Level> dimensionKey = Registries.levelStemToLevel(stemKey);
+-        return Files.isDirectory(this.server.storageSource.getDimensionPath(dimensionKey));
++        final java.nio.file.Path dimensionPath = this.server.storageSource.getDimensionPath(dimensionKey);
++        if (!Files.isDirectory(dimensionPath)) {
++            return false;
++        }
++        // Janky Paper start - a dimension folder without its world gen settings file must not crash the server
++        if (dimensionKey != Level.OVERWORLD) {
++            final java.nio.file.Path settingsFile = WorldGenSettings.TYPE.id().withSuffix(".dat").resolveAgainst(dimensionPath.resolve(LevelResource.DATA.id()));
++            if (!Files.isRegularFile(settingsFile)) {
++                dev.jankypaper.server.log.JankyLog.warn("Dimension folder for " + dimensionKey.identifier() + " exists but " + settingsFile.getFileName() + " is missing - regenerating world gen settings from the server defaults");
++                return false;
++            }
++        }
++        // Janky Paper end
++        return true;
+     }
+ 
+     public static WorldGenSettings loadWorldGenSettings(

@@ -1,0 +1,11 @@
+--- a/net/minecraft/server/ServerAdvancementManager.java
++++ b/net/minecraft/server/ServerAdvancementManager.java
+@@ -37,7 +_,7 @@
+         this.advancements = builder.buildOrThrow();
+         AdvancementTree tree = new AdvancementTree();
+         tree.addAll(this.advancements.values());
+-        LOGGER.info("Loaded {} advancements", tree.nodes().size()); // Paper - Improve logging and errors; moved from AdvancementTree#addAll
++        dev.jankypaper.server.log.JankyLog.kv("Advancements", tree.nodes().size()); // Janky Paper - styled logs // Paper - Improve logging and errors; moved from AdvancementTree#addAll
+         tree.repositionNodes();
+         this.tree = tree;
+     }

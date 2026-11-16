@@ -1,0 +1,10 @@
+--- a/net/minecraft/world/entity/monster/Enderman.java
++++ b/net/minecraft/world/entity/monster/Enderman.java
+@@ -223,6 +_,7 @@
+     }
+ 
+     private boolean isBeingStaredBy(final Player player) {
++        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer && serverPlayer.jankyBot) return false; // Janky Paper - lightweight bots - a bot never provokes an enderman by looking at it
+         // Paper start - EndermanAttackPlayerEvent
+         final boolean shouldAttack = this.isBeingStaredBy0(player);
+         final com.destroystokyo.paper.event.entity.EndermanAttackPlayerEvent event = new com.destroystokyo.paper.event.entity.EndermanAttackPlayerEvent((org.bukkit.entity.Enderman) getBukkitEntity(), (org.bukkit.entity.Player) player.getBukkitEntity());

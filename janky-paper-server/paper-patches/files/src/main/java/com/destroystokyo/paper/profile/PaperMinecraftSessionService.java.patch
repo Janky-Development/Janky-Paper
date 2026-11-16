@@ -1,0 +1,74 @@
+--- a/src/main/java/com/destroystokyo/paper/profile/PaperMinecraftSessionService.java
++++ b/src/main/java/com/destroystokyo/paper/profile/PaperMinecraftSessionService.java
+@@ -3,18 +_,37 @@
+ import com.destroystokyo.paper.event.profile.FillProfileEvent;
+ import com.destroystokyo.paper.event.profile.PreFillProfileEvent;
+ import com.mojang.authlib.GameProfile;
++import com.mojang.authlib.HttpDiscoveryService; // Janky Paper
++import com.mojang.authlib.minecraft.client.MinecraftClient; // Janky Paper
++import com.mojang.authlib.properties.PropertyMap; // Janky Paper
+ import com.mojang.authlib.services.MinecraftServicesSessionService;
+ import com.mojang.authlib.services.ProfileResult;
+ import com.mojang.authlib.services.ServicesKeySet;
++import com.mojang.authlib.services.response.MinecraftProfilePropertiesResponse; // Janky Paper
++import com.mojang.authlib.services.response.ProfileAction; // Janky Paper
++import com.mojang.authlib.services.response.discovery.Service; // Janky Paper
++import com.mojang.util.UndashedUuid; // Janky Paper
+ import java.net.Proxy;
++import java.net.URL; // Janky Paper
+ import java.util.Collections;
+ import java.util.UUID;
++import java.util.stream.Collectors; // Janky Paper
+ import org.jspecify.annotations.Nullable;
+ 
+ public class PaperMinecraftSessionService extends MinecraftServicesSessionService {
+ 
++    // Janky Paper start - cache signed profile lookups and back off on HTTP 429
++    private final MinecraftClient jankyClient;
++    private final PaperServicesDiscoveryService jankyDiscovery;
++    private final dev.jankypaper.server.profile.ProfileLookups<ProfileResult> jankyLookups = new dev.jankypaper.server.profile.ProfileLookups<>(
++        result -> new ProfileResult(new GameProfile(result.profile().id(), result.profile().name(), new PropertyMap(result.profile().properties())), result.actions())
++    );
++    // Janky Paper end - cache signed profile lookups and back off on HTTP 429
++
+     protected PaperMinecraftSessionService(ServicesKeySet servicesKeySet, Proxy proxy, PaperServicesDiscoveryService discoveryService) {
+         super(servicesKeySet, proxy, discoveryService);
++        this.jankyClient = MinecraftClient.unauthenticated(proxy); // Janky Paper
++        this.jankyDiscovery = discoveryService; // Janky Paper
+     }
+ 
+     public @Nullable ProfileResult fetchProfile(GameProfile profile, final boolean requireSecure) {
+@@ -24,7 +_,7 @@
+         if (profile.properties().containsKey("textures")) {
+             return new ProfileResult(profile, Collections.emptySet());
+         }
+-        ProfileResult result = super.fetchProfile(profile.id(), requireSecure);
++        ProfileResult result = this.fetchProfile(profile.id(), requireSecure); // Janky Paper - through the lookup guard
+         if (result != null) {
+             final FillProfileEvent event = new FillProfileEvent(CraftPlayerProfile.asBukkitCopy(result.profile()));
+             event.callEvent();
+@@ -35,6 +_,24 @@
+ 
+     @Override @Deprecated
+     public @Nullable ProfileResult fetchProfile(final UUID profileId, final boolean requireSecure) {
++        // Janky Paper start - authlib caches only unsigned lookups; route signed ones through the guard
++        if (requireSecure) {
++            return this.jankyLookups.fetch(profileId, this::jankyFetchSigned);
++        }
++        // Janky Paper end - authlib caches only unsigned lookups; route signed ones through the guard
+         return super.fetchProfile(profileId, requireSecure);
+     }
++
++    // Janky Paper start - same request as authlib's private fetchProfileUncached, minus its catch-all,
++    // so ProfileLookups can see the HTTP status
++    private @Nullable ProfileResult jankyFetchSigned(final UUID profileId) {
++        final String endpoint = this.jankyDiscovery.getUrl(Service.SESSION, "getProfileById").replace("{profileId}", UndashedUuid.toString(profileId));
++        final URL url = HttpDiscoveryService.concatenateURL(HttpDiscoveryService.constantURL(endpoint), "unsigned=false");
++        final MinecraftProfilePropertiesResponse response = this.jankyClient.get(url, MinecraftProfilePropertiesResponse.class);
++        if (response == null) {
++            return null;
++        }
++        return new ProfileResult(response.profile(), response.profileActions().stream().map(ProfileAction::type).collect(Collectors.toSet()));
++    }
++    // Janky Paper end - same request as authlib's private fetchProfileUncached, minus its catch-all
+ }

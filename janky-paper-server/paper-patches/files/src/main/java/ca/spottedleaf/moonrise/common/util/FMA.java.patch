@@ -1,0 +1,11 @@
+--- a/src/main/java/ca/spottedleaf/moonrise/common/util/FMA.java
++++ b/src/main/java/ca/spottedleaf/moonrise/common/util/FMA.java
+@@ -56,7 +_,7 @@
+                 try {
+                     for (final String line : new SystemInfo().getHardware().getProcessor().getFeatureFlags()) {
+                         if (line.toLowerCase(Locale.ROOT).matches("(?s).*\\bfma\\b.*")) {
+-                            LOGGER.info("FMA supported: " + true + " for Linux platform with feature flag: " + line);
++                            LOGGER.info("FMA supported: true (Linux cpu flags advertise fma)"); // Janky Paper - don't dump every cpu flag
+                             return true;
+                         }
+                     }

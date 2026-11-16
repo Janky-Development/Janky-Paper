@@ -1,0 +1,2 @@
+./gradlew rebuildPaperPatches
+./gradlew rebuildAllServerPatches

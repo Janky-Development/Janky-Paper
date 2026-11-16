@@ -1,0 +1,121 @@
+--- a/src/main/java/io/papermc/paper/network/ChannelInitializeListenerHolder.java
++++ b/src/main/java/io/papermc/paper/network/ChannelInitializeListenerHolder.java
+@@ -18,6 +_,23 @@
+ 
+     private static final Map<Key, ChannelInitializeListener> LISTENERS = new LinkedHashMap<>();
+     private static final Map<Key, ChannelInitializeListener> IMMUTABLE_VIEW = Collections.unmodifiableMap(LISTENERS);
++    // Janky Paper start - a broken listener must not close every new connection
++    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getClassLogger();
++    private static final long FAILURE_LOG_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
++    private static final Map<Key, Long> LAST_FAILURE_LOG = new java.util.concurrent.ConcurrentHashMap<>();
++    /** Registration-ordered copy iterated by Netty threads; rebuilt under the LISTENERS lock on every change. */
++    private static volatile Map.Entry<Key, ChannelInitializeListener>[] SNAPSHOT = newSnapshot(Collections.emptyMap());
++
++    @SuppressWarnings({"unchecked", "rawtypes"}) // generic array creation
++    private static Map.Entry<Key, ChannelInitializeListener>[] newSnapshot(final Map<Key, ChannelInitializeListener> listeners) {
++        final Map.Entry<Key, ChannelInitializeListener>[] snapshot = new Map.Entry[listeners.size()];
++        int i = 0;
++        for (final Map.Entry<Key, ChannelInitializeListener> entry : listeners.entrySet()) {
++            snapshot[i++] = Map.entry(entry.getKey(), entry.getValue());
++        }
++        return snapshot;
++    }
++    // Janky Paper end
+ 
+     private ChannelInitializeListenerHolder() {
+     }
+@@ -39,7 +_,10 @@
+      * @param listener initialization listeners
+      */
+     public static void addListener(@NonNull Key key, @NonNull ChannelInitializeListener listener) {
+-        LISTENERS.put(key, listener);
++        synchronized (LISTENERS) { // Janky Paper - keep the snapshot in step
++            LISTENERS.put(key, listener);
++            SNAPSHOT = newSnapshot(LISTENERS);
++        }
+     }
+ 
+     /**
+@@ -49,7 +_,13 @@
+      * @return removed initialization listener if present
+      */
+     public static @Nullable ChannelInitializeListener removeListener(@NonNull Key key) {
+-        return LISTENERS.remove(key);
++        synchronized (LISTENERS) { // Janky Paper - keep the snapshot in step
++            final ChannelInitializeListener removed = LISTENERS.remove(key);
++            if (removed != null) {
++                SNAPSHOT = newSnapshot(LISTENERS);
++            }
++            return removed;
++        }
+     }
+ 
+     /**
+@@ -67,8 +_,63 @@
+      * @param channel channel
+      */
+     public static void callListeners(@NonNull Channel channel) {
+-        for (ChannelInitializeListener listener : LISTENERS.values()) {
+-            listener.afterInitChannel(channel);
+-        }
+-    }
++        // Janky Paper start - a broken listener must not close every new connection
++        for (final Map.Entry<Key, ChannelInitializeListener> entry : SNAPSHOT) {
++            try {
++                entry.getValue().afterInitChannel(channel);
++            } catch (final Throwable throwable) {
++                handleFailure(entry.getKey(), entry.getValue(), throwable);
++            }
++        }
++        // Janky Paper end
++    }
++
++    // Janky Paper start - a broken listener must not close every new connection
++    /**
++     * Removes every listener whose class was loaded by the given class loader - called when a plugin is
++     * disabled, because a listener that outlives its (closed) plugin jar throws on every new connection.
++     *
++     * @param classLoader the disabled plugin's class loader
++     * @return the keys that were removed, in registration order
++     */
++    public static java.util.List<Key> removeListeners(final @NonNull ClassLoader classLoader) {
++        final java.util.List<Key> removed = new java.util.ArrayList<>();
++        synchronized (LISTENERS) {
++            final java.util.Iterator<Map.Entry<Key, ChannelInitializeListener>> iterator = LISTENERS.entrySet().iterator();
++            while (iterator.hasNext()) {
++                final Map.Entry<Key, ChannelInitializeListener> entry = iterator.next();
++                if (entry.getValue().getClass().getClassLoader() == classLoader) {
++                    removed.add(entry.getKey());
++                    iterator.remove();
++                }
++            }
++            if (!removed.isEmpty()) {
++                SNAPSHOT = newSnapshot(LISTENERS);
++            }
++        }
++        return removed;
++    }
++
++    private static void handleFailure(final Key key, final ChannelInitializeListener listener, final Throwable throwable) {
++        String owner = "";
++        if (listener.getClass().getClassLoader() instanceof io.papermc.paper.plugin.provider.classloader.ConfiguredPluginClassLoader pluginClassLoader) {
++            final org.bukkit.plugin.java.JavaPlugin plugin = pluginClassLoader.getPlugin();
++            if (plugin != null && !plugin.isEnabled()) {
++                if (removeListener(key) != null) {
++                    LOGGER.warn("Removed channel initialization listener '{}' of the disabled plugin {}; it was failing on every new connection", key, plugin.getName());
++                }
++                return;
++            }
++            if (plugin != null) {
++                owner = " (" + plugin.getName() + ")";
++            }
++        }
++        final long now = System.nanoTime();
++        final Long last = LAST_FAILURE_LOG.get(key);
++        if (last == null || now - last >= FAILURE_LOG_INTERVAL_NANOS) {
++            LAST_FAILURE_LOG.put(key, now);
++            LOGGER.warn("Channel initialization listener '{}'{} failed; the connection continues without it", key, owner, throwable);
++        }
++    }
++    // Janky Paper end
+ }
