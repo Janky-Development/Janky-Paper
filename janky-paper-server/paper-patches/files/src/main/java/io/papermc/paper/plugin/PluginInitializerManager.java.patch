@@ -1,10 +1,11 @@
 --- a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
 +++ b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
-@@ -104,7 +_,7 @@
+@@ -104,7 +_,8 @@
      }
  
      public static void load(OptionSet optionSet) throws Exception {
 -        LOGGER.info("Initializing plugins...");
++        dev.jankypaper.server.migration.ConfigMigration.run(optionSet); // Janky Paper - move an existing server's files to Janky defaults before they load
 +        dev.jankypaper.server.log.JankyLog.info("Initializing plugins..."); // Janky Paper - styled logs
          // We have to load the bukkit configuration inorder to get the update folder location.
          io.papermc.paper.plugin.PluginInitializerManager pluginSystem = io.papermc.paper.plugin.PluginInitializerManager.init(optionSet);
