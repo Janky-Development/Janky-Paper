@@ -47,8 +47,10 @@ NOT_CODE = re.compile(
 )
 # Main's files every mirror branch gets a copy of (the license terms require them in every copy).
 SHARED_FILES = ["LICENSE", "NOTICE.md", "CREDITS.md"]
-# ci-builds asset label: "janky-paper-<mc>.jar · code <fingerprint>" - the code that jar was built from.
+# ci-builds asset label: "janky-paper-<mc>.jar · code <fingerprint> · build <id>" - the code that jar was built from and
+# the random id written into the jar (its Janky-Build-Id manifest attribute; older labels have none).
 LABEL_CODE = re.compile(r"code ([0-9a-f]{64})")
+LABEL_BUILD = re.compile(r"build ([0-9a-f]+)")
 
 
 def run(*cmd, check=True, env=None, cwd=ROOT):
@@ -121,14 +123,16 @@ def entry_fingerprint(entry):
 
 
 def ci_jars():
-    """Jars on the ci-builds pre-release: name -> {id, fingerprint} (empty when the pre-release does not exist)."""
+    """Jars on the ci-builds pre-release: name -> {id, fingerprint, build} (empty when the pre-release does not exist)."""
     result = gh("api", f"repos/{REPO}/releases/tags/{CI_BUILDS}", check=False)
     if result.returncode != 0:
         return {}
     jars = {}
     for asset in json.loads(result.stdout or "{}").get("assets", []):
         match = LABEL_CODE.search(asset.get("label") or "")
-        jars[asset["name"]] = dict(id=asset["id"], fingerprint=match.group(1) if match else None)
+        build = LABEL_BUILD.search(asset.get("label") or "")
+        jars[asset["name"]] = dict(id=asset["id"], fingerprint=match.group(1) if match else None,
+                                   build=build.group(1) if build else None)
     return jars
 
 

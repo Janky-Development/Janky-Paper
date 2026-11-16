@@ -58,7 +58,7 @@
      implementation("ca.spottedleaf:leafpile:1.2.0")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
-@@ -163,22 +_,24 @@
+@@ -163,22 +_,25 @@
      manifest {
          val git = Git(rootProject.layout.projectDirectory.path)
          val mcVersion = rootProject.providers.gradleProperty("mcVersion").get()
@@ -87,6 +87,7 @@
 +            "Specification-Vendor" to "Janky Paper Team",
 +            "Brand-Id" to "jankypaper:janky-paper",
 +            "Brand-Name" to "Janky Paper",
++            "Janky-Build-Id" to (System.getenv("JANKY_BUILD_ID")?.takeIf { it.isNotBlank() } ?: ("local-" + kotlin.random.Random.nextLong().toULong().toString(16).padStart(16, '0').take(12))), // Janky Paper - random id per build: tells two builds of one version apart (update checker; CI sets JANKY_BUILD_ID, local builds are never auto-updated)
              "Build-Number" to (build ?: ""),
              "Build-Time" to buildTime.toString(),
              "Git-Branch" to gitBranch,

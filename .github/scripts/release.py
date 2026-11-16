@@ -108,7 +108,8 @@ def main():
                 message = f"{mc}: `{path or '.'}` @ {head[:7]} has no CI jar of its current code yet (build running or failed)"
                 (waiting if full else skipped).append(message)
                 continue
-            plan.append(dict(mc=mc, path=path, branch=branch, commit=head, fingerprint=code, source="ci", asset_id=jar["id"]))
+            plan.append(dict(mc=mc, path=path, branch=branch, commit=head, fingerprint=code, source="ci", asset_id=jar["id"],
+                             build=jar.get("build")))
         elif full:
             plan.append(dict(mc=mc, path=old.get("path", ""), branch=old["branch"], commit=old["commit"],
                              fingerprint=lines_.entry_fingerprint(old), source="release", release=old["release"], asset=old["asset"]))
@@ -139,6 +140,8 @@ def main():
             manifest_lines[line["mc"]] = dict(branch=line["branch"], path=line["path"], commit=line["commit"],
                                               fingerprint=line["fingerprint"], release=version,
                                               asset=asset_name(line["mc"], version))
+            if line.get("build"):
+                manifest_lines[line["mc"]]["build"] = line["build"]  # the jar's Janky-Build-Id (update checker)
         else:
             manifest_lines[line["mc"]] = {**manifest_lines[line["mc"]], "release": version, "asset": asset_name(line["mc"], version),
                                           "fingerprint": line["fingerprint"]}
@@ -192,11 +195,11 @@ def release_notes(version, full, plan, manifest, versions, skipped):
     else:
         out.append("Updated in this release: " + ", ".join(f"**{line['mc']}**" for line in plan) + ".")
         out.append("Every other Minecraft version is unchanged - its current jar is linked below.")
-    out += ["", "| Minecraft | Server jar | Built from |", "|---|---|---|"]
+    out += ["", "| Minecraft | Server jar | Build id | Built from |", "|---|---|---|---|"]
     for mc, _, _ in versions:
         entry = manifest["lines"].get(mc)
         if entry is None:
-            out.append(f"| {mc} | not released yet | |")
+            out.append(f"| {mc} | not released yet | | |")
             continue
         jar = f"[{entry['asset']}]({asset_url(entry['release'], entry['asset'])})"
         if mc not in in_release:
@@ -204,7 +207,8 @@ def release_notes(version, full, plan, manifest, versions, skipped):
         commit = f"[{entry['commit'][:7]}]({SERVER}/{REPO}/commit/{entry['commit']})"
         where = f"`main` `{entry['path']}/`" if entry.get("path") else f"`{entry['branch']}`"
         source = f"[`{entry['branch']}`]({SERVER}/{REPO}/tree/{entry['branch']})" if entry.get("path") else ""
-        out.append(f"| {mc} | {jar} | {where} @ {commit}{' - branch ' + source if source else ''} |")
+        build = f"`{entry['build']}`" if entry.get("build") else "-"
+        out.append(f"| {mc} | {jar} | {build} | {where} @ {commit}{' - branch ' + source if source else ''} |")
     if skipped:
         out += ["", "Changed but not in this release yet (they follow once their CI passes):"]
         out += [f"- {message}" for message in skipped]
@@ -216,6 +220,10 @@ def release_notes(version, full, plan, manifest, versions, skipped):
         "```",
         f"java -Xms4G -Xmx4G -jar {asset_name(plan[0]['mc'], version)} --nogui",
         "```",
+        "",
+        "Servers on a Janky Paper build with the updater install this release by themselves (for their own Minecraft "
+        "version) and run it after their next restart - `updates.auto-update` in `config/janky-paper.yml` turns that "
+        "off. `/version` shows the running jar's build id.",
         "",
     ]
     return "\n".join(out)

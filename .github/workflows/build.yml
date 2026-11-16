@@ -3,8 +3,9 @@ name: Patch and Build
 # Every Minecraft version is a project on main in versions/<mc>/ (listed in versions.txt).
 # A push to main builds only the versions whose code is neither released nor already built (.github/scripts/
 # janky_lines.py plan) - in parallel, one job each - and uploads each jar to the "ci-builds" pre-release, labelled with
-# the fingerprint of the code it was built from. The Release workflow then publishes them and updates the ver/* mirror
-# branches. Pull requests build the versions they change.
+# the fingerprint of the code it was built from and its random build id (Janky-Build-Id). Every jar is booted once
+# (.github/scripts/smoke_test.sh) before it is uploaded. The Release workflow then publishes them and updates the ver/*
+# mirror branches. Pull requests build (and boot) the versions they change.
 on:
   push:
     branches: [ main ]
@@ -81,12 +82,22 @@ jobs:
       # Commits made on Windows (core.filemode=false) keep losing gradlew's executable bit: don't depend on it
       - name: Make Gradle Wrapper Executable
         run: chmod +x gradlew
+      # A random id for this build: written into the jar (Janky-Build-Id) and the ci-builds label, and from there into the
+      # release manifest, so the update checker can tell two builds of the same version apart
+      - name: Pick Build Id
+        run: echo "JANKY_BUILD_ID=$(openssl rand -hex 6)" >> "$GITHUB_ENV"
       - name: Apply Patches
         run: ./gradlew applyAllPatches --stacktrace
       - name: Build
         run: ./gradlew build --stacktrace
       - name: Create Paperclip Jar
         run: ./gradlew createPaperclipJar --stacktrace
+      # Servers install new releases by themselves (updates.auto-update), so a jar that doesn't start must never be
+      # published: boot it once (Paper-style config, so the config migration runs too) and stop it from the console.
+      - name: Smoke Test
+        run: |
+          jar=$(ls janky-paper-server/build/libs/jankypaper-paperclip-*.jar | grep -v -- '-reobf\.jar$' | head -n 1)
+          bash "$GITHUB_WORKSPACE/.github/scripts/smoke_test.sh" "$jar" "$JANKY_BUILD_ID"
       # Kept as an asset of the "ci-builds" pre-release, not as an Actions artifact: release assets don't count against
       # the Actions storage quota (0.5 GB on the free plan, about 8 jars). Only for pushes to main.
       - name: Upload Paperclip Jar
@@ -104,5 +115,5 @@ jobs:
             --target "${{ github.event.repository.default_branch }}" --title "Development builds (CI)" \
             --notes "The newest server jar CI built for each Minecraft version: untested in game and not a release. The real releases are the 'Janky Paper <number>' releases; the Release workflow publishes them from here." \
             || gh release view ci-builds >/dev/null # another job created it at the same moment
-          # replaces this version's previous jar (same name); the label records the code it was built from
-          gh release upload ci-builds "$RUNNER_TEMP/$name#$name · code $CODE" --clobber
+          # replaces this version's previous jar (same name); the label records the code it was built from and its build id
+          gh release upload ci-builds "$RUNNER_TEMP/$name#$name · code $CODE · build $JANKY_BUILD_ID" --clobber
