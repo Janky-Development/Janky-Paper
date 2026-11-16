@@ -92,6 +92,23 @@ Accept the EULA in `eula.txt` on first start. All of Paper's, Spigot's and Bukki
 `server.properties`) work unchanged. Janky Paper adds **one** file: `config/janky-paper.yml`,
 written with defaults on first start.
 
+### Switching an existing server to Janky Paper
+
+Just replace the server jar - keep every file and folder. Janky Paper ships a few different defaults from
+Paper (below), but a default only lands in a file when the file is first written, so an existing server would
+keep Paper's values. On the first start, before those files load, Janky Paper moves every value that still
+holds the **old default** to the Janky one and logs each change. Values you changed yourself are never touched.
+
+| File | Setting | Paper default | Janky default |
+|---|---|---|---|
+| `server.properties` | `max-players` | `20` | `2000000` |
+| `spigot.yml` | `world-settings.default.max-tnt-per-tick` | `100` | `2147483647` (no cap) |
+| `config/paper-global.yml` | `unsupported-settings.update-equipment-on-player-actions` | `true` | `false` |
+
+It runs once: `config-version` in `config/janky-paper.yml` records which changes this server already got (a
+server updated from an older Janky Paper build gets the ones it missed). Want a value back? Edit the file - it
+stays as you set it.
+
 ### What the startup log shows
 
 During start-up Janky Paper prints a few extra rows you can use to confirm the features are active:
